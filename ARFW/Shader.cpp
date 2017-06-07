@@ -4,15 +4,15 @@ using namespace std;
 using namespace glm;
 
 extern std::string g_ExePath;
-vector<Shader::NameId> Shader::shaderList;
+vector<Shader::IdNamePair> Shader::shaderList;
 
 Shader::Shader(string shadername)
 {
 	if (shadername == "") return;
 
 	// Check program list for the shader and set id, if unavailable, read file and compile
-	vector<NameId>::iterator it = find_if(shaderList.begin(), shaderList.end(),
-		[shadername](const NameId& e){ return e.second == shadername; });
+	vector<IdNamePair>::iterator it = find_if(shaderList.begin(), shaderList.end(),
+		[shadername](const IdNamePair& e){ return e.second == shadername; });
 
 	if (it == shaderList.end())
 	{

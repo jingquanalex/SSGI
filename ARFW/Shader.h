@@ -1,12 +1,7 @@
 #pragma once
 
 #include "global.h"
-#include <glm/gtc/type_ptr.hpp>
-#include <string>
-#include <iostream>
 #include <fstream>
-#include <sstream>
-#include <vector>
 #include <algorithm>
 #include <utility>
 
@@ -15,8 +10,8 @@ class Shader
 
 private:
 
-	typedef std::pair<GLuint, std::string> NameId;
-	static std::vector<NameId> shaderList;
+	typedef std::pair<GLuint, std::string> IdNamePair;
+	static std::vector<IdNamePair> shaderList;
 
 	GLuint shaderId;
 	std::string shaderName;
