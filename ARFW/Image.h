@@ -1,5 +1,5 @@
 #pragma once
-/*
+
 #include "global.h"
 #include <stb_image.h>
 #include <fstream>
@@ -8,5 +8,4 @@
 
 typedef std::pair<GLuint, std::string> IdNamePair;
 static std::vector<IdNamePair> listTextures;
-int loadTexture(std::string filename);
-*/
+int loadTexture(std::string filepath);

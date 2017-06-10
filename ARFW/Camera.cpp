@@ -6,20 +6,18 @@ using namespace std;
 // Input: width and height of the window as int.
 Camera::Camera(int windowWidth, int windowHeight)
 {
-	isWrappingPointer = false;
-	mouseTriggered = false;
 	isActive = false;
 	isOrtho = false;
 	mouseLastX = 0;
 	mouseLastY = 0;
-	position = vec3(0.0f, 3.0f, 5.0f);
+	position = vec3(0.0f, 0.0f, 5.0f);
 	direction = vec3(0.0f, 0.0f, -1.0f);
 	up = vec3(0.0f, 1.0f, 0.0f);
 	fov = 75.0f;
 	zNear = 1.0f;
 	zFar = 50.0f;
 
-	mouseSensitivity = 0.25f;
+	mouseSensitivity = 0.1f;
 	smoothness = 50.0f;
 
 	setResolution(windowWidth, windowHeight);
@@ -63,103 +61,21 @@ void Camera::updateViewMatrix()
 	matView = lookAt(position, position + direction, up);
 }
 
-void Camera::mouse(int button, int state)
+void Camera::keyCallback(int key, int action)
 {
 
 }
 
-// Track the delta for the mouse movements
-void Camera::mouseMotion(int x, int y)
+void Camera::cursorPosCallback(double x, double y)
 {
-	/*if (!mouseTriggered)
-	{
-		mouseX = x;
-		mouseY = y;
-	}
-	else
-	{
-		if (!isWrappingPointer)
-		{
-			mouseX = x;
-			mouseY = y;
-
-			if (mouseX != glutGet(GLUT_WINDOW_WIDTH) / 2 || mouseY != glutGet(GLUT_WINDOW_HEIGHT) / 2)
-			{
-				isWrappingPointer = true;
-				glutWarpPointer(glutGet(GLUT_WINDOW_WIDTH) / 2, glutGet(GLUT_WINDOW_HEIGHT) / 2);
-			}
-		}
-		else
-		{
-			isWrappingPointer = false;
-			mouseLastX = glutGet(GLUT_WINDOW_WIDTH) / 2;
-			mouseLastY = glutGet(GLUT_WINDOW_HEIGHT) / 2;
-		}
-	}
-
-	mouseDeltaX = (float)(mouseX - mouseLastX);
-	mouseDeltaY = (float)(mouseY - mouseLastY);
-	mouseLastX = mouseX;
-	mouseLastY = mouseY;*/
+	mouseDeltaX = (float)(x - mouseLastX);
+	mouseDeltaY = (float)(y - mouseLastY);
+	mouseLastX = x;
+	mouseLastY = y;
+	cout << "dx: " << mouseDeltaX << " dy: " << mouseDeltaY << endl;
 }
 
-void Camera::mouseMotionPassive(int x, int y)
-{
-	// NOTE: glutWarpPointer calls mouseMotionPassive to move the mouse
-	// No mouse trigger, just update mouse X Y position
-	/*if (!mouseTriggered)
-	{
-		mouseX = x;
-		mouseY = y;
-	}
-	else
-	{
-		if (!isWrappingPointer)
-		{
-			mouseX = x;
-			mouseY = y;
-
-			if (mouseX != glutGet(GLUT_WINDOW_WIDTH) / 2 || mouseY != glutGet(GLUT_WINDOW_HEIGHT) / 2)
-			{
-				isWrappingPointer = true;
-				glutWarpPointer(glutGet(GLUT_WINDOW_WIDTH) / 2, glutGet(GLUT_WINDOW_HEIGHT) / 2);
-			}
-		}
-		else
-		{
-			isWrappingPointer = false;
-			mouseLastX = glutGet(GLUT_WINDOW_WIDTH) / 2;
-			mouseLastY = glutGet(GLUT_WINDOW_HEIGHT) / 2;
-		}
-	}
-
-	mouseDeltaX = (float)(mouseX - mouseLastX);
-	mouseDeltaY = (float)(mouseY - mouseLastY);
-	mouseLastX = mouseX;
-	mouseLastY = mouseY;*/
-}
-
-void Camera::mouseWheel(int dir)
-{
-
-}
-
-void Camera::keyboard(int key)
-{
-
-}
-
-void Camera::keyboardUp(int key)
-{
-
-}
-
-void Camera::keyboardSpecial(int key)
-{
-
-}
-
-void Camera::keyboardSpecialUp(int key)
+void Camera::mouseCallback(int button, int action)
 {
 
 }

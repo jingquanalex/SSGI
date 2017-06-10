@@ -16,7 +16,7 @@ Shader::Shader(string shadername)
 
 	if (it == shaderList.end())
 	{
-		cout << "Compile Shader: " << shadername << endl;
+		cout << "Shader Loaded: " << shadername << endl;
 		shaderId = compileShader(shadername);
 		if (shaderId)
 		{
@@ -32,6 +32,11 @@ Shader::Shader(string shadername)
 Shader::~Shader()
 {
 
+}
+
+void Shader::apply()
+{
+	glUseProgram(shaderId);
 }
 
 GLuint Shader::getShaderId() const

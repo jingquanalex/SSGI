@@ -44,29 +44,45 @@ void CameraFPS::update(float dt)
 	}
 }
 
-void CameraFPS::mouse(int button, int state)
+void CameraFPS::keyCallback(int key, int action)
 {
 	if (!isActive) return;
 
-	/*if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN)
+	if (key == GLFW_KEY_LEFT_SHIFT & action == GLFW_PRESS)
 	{
-		stateLookAround = true;
+		moveSpeed *= 2;
 	}
-	else if (button == GLUT_RIGHT_BUTTON && state == GLUT_UP)
+	else if (key == GLFW_KEY_LEFT_SHIFT & action == GLFW_RELEASE)
 	{
-		stateLookAround = false;
-	}*/
+		moveSpeed = 10.0f;
+	}
+
+	switch (key)
+	{
+	case GLFW_KEY_W:
+		stateForward = action;
+		break;
+	case GLFW_KEY_A:
+		stateLeft = action;
+		break;
+	case GLFW_KEY_S:
+		stateBackward = action;
+		break;
+	case GLFW_KEY_D:
+		stateRight = action;
+		break;
+	}
 }
 
 // Track the delta for the mouse movements
-void CameraFPS::mouseMotion(int x, int y)
+void CameraFPS::cursorPosCallback(double x, double y)
 {
 	if (!isActive) return;
 
+	Camera::cursorPosCallback(x, y);
+
 	if (stateLookAround)
 	{
-		Camera::mouseMotion(x, y);
-
 		// Update yaw and pitch and limit pitch
 		yaw += mouseDeltaX * mouseSensitivity;
 		pitch += -mouseDeltaY * mouseSensitivity;
@@ -84,55 +100,17 @@ void CameraFPS::mouseMotion(int x, int y)
 }
 
 // Keys callback
-void CameraFPS::keyboard(int key)
+void CameraFPS::mouseCallback(int button, int action)
 {
 	if (!isActive) return;
 
-	/*if (glutGetModifiers() & GLUT_ACTIVE_SHIFT)
+	if (button == GLFW_MOUSE_BUTTON_RIGHT & action == GLFW_PRESS)
 	{
-		moveSpeed *= 2;
+		stateLookAround = true;
 	}
-	else
+	else if (button == GLFW_MOUSE_BUTTON_RIGHT & action == GLFW_RELEASE)
 	{
-		moveSpeed = 10.0f;
-	}
-
-	switch (key)
-	{
-	case 'w':
-		stateForward = true;
-		break;
-	case 'a':
-		stateLeft = true;
-		break;
-	case 's':
-		stateBackward = true;
-		break;
-	case 'd':
-		stateRight = true;
-		break;
-	}*/
-}
-
-// Keys up callback
-void CameraFPS::keyboardUp(int key)
-{
-	if (!isActive) return;
-
-	switch (key)
-	{
-	case 'w':
-		stateForward = false;
-		break;
-	case 'a':
-		stateLeft = false;
-		break;
-	case 's':
-		stateBackward = false;
-		break;
-	case 'd':
-		stateRight = false;
-		break;
+		stateLookAround = false;
 	}
 }
 

@@ -9,8 +9,6 @@ class Camera
 
 protected:
 
-	bool isWrappingPointer;
-	bool mouseTriggered;
 	bool isActive;
 	bool isOrtho;
 
@@ -20,7 +18,7 @@ protected:
 	float aspectRatio, fov, zNear, zFar;
 	glm::vec2 resolution;
 
-	int mouseX, mouseY, mouseLastX, mouseLastY;
+	double mouseLastX, mouseLastY;
 	float mouseDeltaX, mouseDeltaY;
 	float maxSpeed, acceleration, smoothness;
 	float mouseSensitivity;
@@ -36,15 +34,10 @@ public:
 	// === Functions ===
 
 	virtual void update(float dt);
-	virtual void mouse(int button, int state);
-	virtual void mouseMotion(int x, int y);
-	virtual void mouseMotionPassive(int x, int y);
-	virtual void mouseWheel(int dir);
-	virtual void keyboard(int key);
-	virtual void keyboardUp(int key);
-	virtual void keyboardSpecial(int key);
-	virtual void keyboardSpecialUp(int key);
-
+	virtual void keyCallback(int key, int action);
+	virtual void cursorPosCallback(double x, double y);
+	virtual void mouseCallback(int button, int action);
+	
 	// === Accessors ===
 
 	void setPosition(glm::vec3 position);

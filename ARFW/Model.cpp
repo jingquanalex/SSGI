@@ -159,17 +159,13 @@ GLint Model::TextureFromFile(const char* path)
 	string filepath = string(path);
 	filepath = directory + '/' + filepath;
 
-	GLuint textureID;
-	//TODO
-	/*GLuint textureID = SOIL_load_OGL_texture(filepath.c_str(), SOIL_LOAD_AUTO,
-		SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y);*/
+	GLuint textureID = loadTexture(filepath);
 
 	glBindTexture(GL_TEXTURE_2D, textureID);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glBindTexture(GL_TEXTURE_2D, 0);
 
 	return textureID;
 }

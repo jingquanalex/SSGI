@@ -24,6 +24,8 @@ public:
 	Shader(std::string shadername);
 	~Shader();
 
+	void apply();
+
 	GLuint getShaderId() const;
 	std::string getShaderName() const;
 

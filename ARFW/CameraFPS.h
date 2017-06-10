@@ -24,10 +24,9 @@ public:
 
 	void update(float dt);
 
-	void mouse(int button, int state);
-	void mouseMotion(int x, int y);
-	void keyboard(int key);
-	void keyboardUp(int key);
+	void keyCallback(int key, int action);
+	void cursorPosCallback(double x, double y);
+	void mouseCallback(int button, int action);
 
 	void setTargetPoint(glm::vec3 position);
 
