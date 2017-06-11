@@ -9,11 +9,13 @@ layout (std140, binding = 0) uniform MatCam
     mat4 view;
 };
 
+uniform mat4 model;
+
 out vec2 Texcoord;
 
 void main()
 {
 	Texcoord = texcoord;
-	gl_Position = projection * view * vec4(position, 1.0);
+	gl_Position = projection * view * model * vec4(position, 1.0);
     //gl_Position = vec4(position.xy, 0.0, 1.0);
 }

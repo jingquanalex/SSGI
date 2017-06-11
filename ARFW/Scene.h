@@ -16,6 +16,8 @@ private:
 	Shader* quadShader;
 	Camera* camera;
 	Quad* quad;
+	Object* sponza;
+	GLuint tex;
 
 	GLuint uniform_CamMat;
 

@@ -4,11 +4,9 @@ using namespace glm;
 using namespace std;
 using namespace Assimp;
 
-extern string g_ExePath;
-
-Model::Model(string filename)
+Model::Model(string filepath)
 {
-	loadModel(g_ExePath + "model/" + filename);
+	loadModel(filepath);
 }
 
 Model::~Model()
@@ -27,7 +25,8 @@ void Model::draw(GLuint program)
 void Model::loadModel(string path)
 {
 	Importer import;
-	const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
+	cout << "Loading model: " << path << endl;
+	const aiScene* scene = import.ReadFile(path, aiProcess_GenNormals | aiProcess_Triangulate | aiProcess_FlipUVs); //aiProcess_Triangulate | aiProcess_FlipUVs
 
 	if (!scene || scene->mFlags == AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
 	{
@@ -158,16 +157,7 @@ GLint Model::TextureFromFile(const char* path)
 	// Generate texture ID and load texture data 
 	string filepath = string(path);
 	filepath = directory + '/' + filepath;
-
-	GLuint textureID = loadTexture(filepath);
-
-	glBindTexture(GL_TEXTURE_2D, textureID);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-	return textureID;
+	return loadTexture(filepath);
 }
 
 BoundingBox Model::getBoundingBox() const

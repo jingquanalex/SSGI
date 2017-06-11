@@ -3,6 +3,7 @@
 using namespace std;
 using namespace glm;
 
+extern string g_ExePath;
 extern int g_windowWidth;
 extern int g_windowHeight;
 
@@ -21,6 +22,12 @@ void Scene::initialize()
 	camera->setActive(true);
 	quadShader = new Shader("quad");
 	quad = new Quad();
+	sponza = new Object();
+	sponza->setGPassShaderId(quadShader->getShaderId());
+	//sponza->setScale(vec3(0.1f));
+	//sponza->load("sponza/sponza.obj");
+	sponza->load("sibenik/sibenik.obj");
+	tex = loadTexture(g_ExePath + "../../media/sibenik/kamen.png");
 
 	// Initialize CamMat uniform buffer
 	glGenBuffers(1, &uniform_CamMat);
@@ -32,13 +39,15 @@ void Scene::initialize()
 	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(mat4), value_ptr(mat4(1)));
 	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4), sizeof(mat4), value_ptr(mat4(1)));
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+	glEnable(GL_DEPTH_TEST);
 }
 
 void Scene::update()
 {
 	// Calculate per frame time interval
 	currentTime = glfwGetTime();
-	float frameTime = currentTime - previousTime;
+	float frameTime = (float)(currentTime - previousTime);
 	previousTime = currentTime;
 
 	camera->update(frameTime);
@@ -56,7 +65,10 @@ void Scene::render()
 	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 
 	quadShader->apply();
+	glUniform1i(glGetUniformLocation(quadShader->getShaderId(), "diffuse1"), 0);
+	glBindTexture(GL_TEXTURE_2D, tex);
 	quad->draw();
+	sponza->draw();
 }
 
 void Scene::keyCallback(int key, int action)

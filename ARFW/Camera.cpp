@@ -14,10 +14,10 @@ Camera::Camera(int windowWidth, int windowHeight)
 	direction = vec3(0.0f, 0.0f, -1.0f);
 	up = vec3(0.0f, 1.0f, 0.0f);
 	fov = 75.0f;
-	zNear = 1.0f;
-	zFar = 50.0f;
+	zNear = 0.1f;
+	zFar = 100.0f;
 
-	mouseSensitivity = 0.1f;
+	mouseSensitivity = 0.2f;
 	smoothness = 50.0f;
 
 	setResolution(windowWidth, windowHeight);
@@ -72,7 +72,7 @@ void Camera::cursorPosCallback(double x, double y)
 	mouseDeltaY = (float)(y - mouseLastY);
 	mouseLastX = x;
 	mouseLastY = y;
-	cout << "dx: " << mouseDeltaX << " dy: " << mouseDeltaY << endl;
+	//cout << "dx: " << mouseDeltaX << " dy: " << mouseDeltaY << endl;
 }
 
 void Camera::mouseCallback(int button, int action)

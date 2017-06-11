@@ -16,7 +16,7 @@ protected:
 	static GLuint defaultTexID;
 
 	Model* model;
-	Shader* shader;
+	GLuint gPassShaderId;
 
 	GLuint lineVbo;
 	GLuint lineVao;
@@ -36,7 +36,7 @@ public:
 	Object(glm::vec3 position = glm::vec3());
 	~Object();
 
-	virtual void load(std::string modelname, std::string shadername = "basic");
+	virtual void load(std::string modelname);
 	virtual void update(float dt);
 	virtual void draw();
 
@@ -48,12 +48,12 @@ public:
 	void setBoundingBoxVisible(bool isVisible);
 	void setVisible(bool isVisible);
 	void setWireframeMode(bool isWireframe);
+	void setGPassShaderId(GLuint id);
 
 	glm::vec3 getPosition() const;
 	glm::vec3 getRotation() const;
 	glm::vec3 getScale() const;
 	glm::mat4 getRotationMatrix() const;
-	Shader* getShader() const;
 	bool getBoundingBoxVisible() const;
 	bool getVisible() const;
 	bool getWireframeMode() const;

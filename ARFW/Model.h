@@ -43,7 +43,7 @@ private:
 
 public:
 
-	Model(std::string filename);
+	Model(std::string filepath);
 	~Model();
 
 	void draw(GLuint program);

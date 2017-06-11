@@ -48,11 +48,11 @@ void CameraFPS::keyCallback(int key, int action)
 {
 	if (!isActive) return;
 
-	if (key == GLFW_KEY_LEFT_SHIFT & action == GLFW_PRESS)
+	if (key == GLFW_KEY_LEFT_SHIFT && action == GLFW_PRESS)
 	{
 		moveSpeed *= 2;
 	}
-	else if (key == GLFW_KEY_LEFT_SHIFT & action == GLFW_RELEASE)
+	else if (key == GLFW_KEY_LEFT_SHIFT && action == GLFW_RELEASE)
 	{
 		moveSpeed = 10.0f;
 	}
@@ -104,11 +104,11 @@ void CameraFPS::mouseCallback(int button, int action)
 {
 	if (!isActive) return;
 
-	if (button == GLFW_MOUSE_BUTTON_RIGHT & action == GLFW_PRESS)
+	if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
 	{
 		stateLookAround = true;
 	}
-	else if (button == GLFW_MOUSE_BUTTON_RIGHT & action == GLFW_RELEASE)
+	else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
 	{
 		stateLookAround = false;
 	}

@@ -8,4 +8,4 @@
 
 typedef std::pair<GLuint, std::string> IdNamePair;
 static std::vector<IdNamePair> listTextures;
-int loadTexture(std::string filepath);
+unsigned int loadTexture(std::string filepath);

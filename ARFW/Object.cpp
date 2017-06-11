@@ -10,7 +10,6 @@ GLuint Object::defaultTexID;
 Object::Object(vec3 position)
 {
 	model = nullptr;
-	shader = nullptr;
 
 	this->position = position;
 	this->rotation = vec3(0.0);
@@ -30,23 +29,9 @@ Object::~Object()
 
 }
 
-void Object::load(string modelname, string shadername)
+void Object::load(string filepath)
 {
-	model = new Model(modelname);
-	shader = new Shader(shadername);
-
-	// Create default white diffuse texture
-	if (defaultTexID == NULL)
-	{
-		//TODO
-		/*defaultTexID = SOIL_load_OGL_texture((g_ExePath + "grass.png").c_str(), SOIL_LOAD_AUTO,
-			SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y);*/
-
-		glBindTexture(GL_TEXTURE_2D, defaultTexID);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glBindTexture(GL_TEXTURE_2D, 0);
-	}
+	model = new Model(g_ExePath + "../../media/" + filepath);
 
 	listBoundingBox.push_back(model->getBoundingBox());
 	makeBoundingBoxData();
@@ -76,37 +61,26 @@ void Object::update(float dt)
 
 void Object::draw()
 {
-	if (shader != nullptr)
+	if (model != nullptr && isVisible)
 	{
-		GLuint program = shader->getShaderId();
-		glUseProgram(program);
-		glUniformMatrix4fv(10, 1, GL_FALSE, value_ptr(matModel));
-		glUniformMatrix4fv(11, 1, GL_FALSE, value_ptr(matNormal));
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, defaultTexID);
-
-		if (model != nullptr && isVisible)
+		if (isWireframeMode)
 		{
-			if (isWireframeMode)
-			{
-				glDisable(GL_CULL_FACE);
-				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			}
-
-			model->draw(program);
-
-			glEnable(GL_CULL_FACE);
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			glDisable(GL_CULL_FACE);
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		}
 
-		if (!lineVertices.empty() && isBoundingBoxVisible)
-		{
-			glUniformMatrix4fv(10, 1, GL_FALSE, value_ptr(mat4()));
-			glBindVertexArray(lineVao);
-			glDrawArrays(GL_LINE_STRIP, 0, (GLsizei)lineVertices.size());
-			glBindVertexArray(0);
-		}
+		glUniformMatrix4fv(glGetUniformLocation(gPassShaderId, "model"), 1, GL_FALSE, value_ptr(matModel));
+		model->draw(gPassShaderId);
+
+		glEnable(GL_CULL_FACE);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
+
+	if (!lineVertices.empty() && isBoundingBoxVisible)
+	{
+		glBindVertexArray(lineVao);
+		glDrawArrays(GL_LINE_STRIP, 0, (GLsizei)lineVertices.size());
+		glBindVertexArray(0);
 	}
 }
 
@@ -223,6 +197,11 @@ void Object::setWireframeMode(bool isWireframe)
 	this->isWireframeMode = isWireframe;
 }
 
+void Object::setGPassShaderId(GLuint id)
+{
+	this->gPassShaderId = id;
+}
+
 vec3 Object::getPosition() const
 {
 	return position;
@@ -241,11 +220,6 @@ vec3 Object::getScale() const
 mat4 Object::getRotationMatrix() const
 {
 	return matRotation;
-}
-
-Shader* Object::getShader() const
-{
-	return shader;
 }
 
 bool Object::getBoundingBoxVisible() const
