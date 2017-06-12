@@ -18,6 +18,7 @@ Scene::~Scene()
 	delete lightingPassShader;
 	delete quad;
 	delete sponza;
+	delete ssao;
 }
 
 void Scene::initialize()
@@ -32,7 +33,7 @@ void Scene::initialize()
 	sponza->setScale(vec3(0.05f));
 	sponza->load("sponza/sponza.obj");
 	//sponza->load("sibenik/sibenik.obj");
-	tex = loadTexture(g_ExePath + "../../media/sibenik/kamen.png");
+	tex = Image::loadTexture(g_ExePath + "../../media/sibenik/kamen.png");
 
 	// Initialize CamMat uniform buffer
 	glGenBuffers(1, &uniform_CamMat);
@@ -70,21 +71,29 @@ void Scene::initialize()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gColor, 0);
 
+	glGenTextures(1, &gDepth);
+	glBindTexture(GL_TEXTURE_2D, gDepth);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, g_windowWidth, g_windowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gDepth, 0);
+
 	const GLuint attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
 	glDrawBuffers(3, attachments);
 
-	glGenRenderbuffers(1, &rboDepth);
-	glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, g_windowWidth, g_windowHeight);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
-
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	// Set lightingPass texture binding ids
+	// Init SSAO shader data
+	ssao = new SSAO();
+
+	// Set lightingPass sampler binding ids
 	lightingPassShader->apply();
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gPosition"), 0);
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gNormal"), 1);
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gColor"), 2);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gDepth"), 3);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "texNoise"), 4);
+	glUniform3fv(glGetUniformLocation(lightingPassShader->getShaderId(), "samples"), 64, value_ptr(ssao->getKernel()[0]));
 
 	glEnable(GL_DEPTH_TEST);
 	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
@@ -128,13 +137,14 @@ void Scene::render()
 	glBindTexture(GL_TEXTURE_2D, gNormal);
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, gColor);
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, gDepth);
+	glActiveTexture(GL_TEXTURE4);
+	glBindTexture(GL_TEXTURE_2D, ssao->getNoiseTexId());
+	glUniform3fv(glGetUniformLocation(lightingPassShader->getShaderId(), "eyePos"), 1, value_ptr(camera->getPosition()));
+	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "screenWidth"), (float)g_windowWidth);
+	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "screenHeight"), (float)g_windowHeight);
 	quad->draw();
-
-	// Copy gBuffer's depth to framebuffer's
-	/*glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-	glBlitFramebuffer(0, 0, g_windowWidth, g_windowHeight, 0, 0, g_windowWidth, g_windowHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);*/
 }
 
 void Scene::keyCallback(int key, int action)

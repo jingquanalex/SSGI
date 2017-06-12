@@ -6,6 +6,10 @@
 #include <algorithm>
 #include <utility>
 
-typedef std::pair<GLuint, std::string> IdNamePair;
-static std::vector<IdNamePair> listTextures;
-unsigned int loadTexture(std::string filepath);
+namespace Image
+{
+	typedef std::pair<GLuint, std::string> IdNamePair;
+	static std::vector<IdNamePair> listTextures;
+
+	unsigned int loadTexture(std::string filepath);
+}

@@ -59,6 +59,7 @@ void Camera::updateProjectionMatrix()
 void Camera::updateViewMatrix()
 {
 	matView = lookAt(position, position + direction, up);
+	matInvView = inverse(matView);
 }
 
 void Camera::keyCallback(int key, int action)

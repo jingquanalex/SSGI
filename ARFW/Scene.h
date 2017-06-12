@@ -5,6 +5,7 @@
 #include "Shader.h"
 #include "CameraFPS.h"
 #include "Quad.h"
+#include "SSAO.h"
 
 class Scene
 {
@@ -13,9 +14,9 @@ private:
 
 	double currentTime, previousTime = 0.0;
 
-	GLuint gBuffer, gPosition, gNormal, gColor;
-	GLuint rboDepth;
+	GLuint gBuffer, gPosition, gNormal, gColor, gDepth;
 	Shader* gPassShader, * lightingPassShader;
+	SSAO* ssao;
 
 	Camera* camera;
 	Quad* quad;

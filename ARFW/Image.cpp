@@ -2,8 +2,9 @@
 #include "Image.h"
 
 using namespace std;
+using namespace Image;
 
-unsigned int loadTexture(string filepath)
+unsigned int Image::loadTexture(string filepath)
 {
 	if (filepath == "") return -1;
 

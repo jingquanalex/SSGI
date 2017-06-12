@@ -1,3 +1,4 @@
+#pragma once
 #include "Scene.h"
 
 std::string g_ExePath;

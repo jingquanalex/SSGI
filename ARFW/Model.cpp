@@ -157,7 +157,7 @@ GLint Model::TextureFromFile(const char* path)
 	// Generate texture ID and load texture data 
 	string filepath = string(path);
 	filepath = directory + '/' + filepath;
-	return loadTexture(filepath);
+	return Image::loadTexture(filepath);
 }
 
 BoundingBox Model::getBoundingBox() const
