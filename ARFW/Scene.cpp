@@ -24,9 +24,10 @@ void Scene::initialize()
 	quad = new Quad();
 	sponza = new Object();
 	sponza->setGPassShaderId(quadShader->getShaderId());
-	//sponza->setScale(vec3(0.1f));
-	//sponza->load("sponza/sponza.obj");
-	sponza->load("sibenik/sibenik.obj");
+	sponza->setScale(vec3(0.05f));
+	sponza->load("sponza/sponza.obj");
+	//sponza->load("sibenik/sibenik.obj");
+	//sponza->load("nano/nanosuit.obj");
 	tex = loadTexture(g_ExePath + "../../media/sibenik/kamen.png");
 
 	// Initialize CamMat uniform buffer
@@ -67,7 +68,8 @@ void Scene::render()
 	quadShader->apply();
 	glUniform1i(glGetUniformLocation(quadShader->getShaderId(), "diffuse1"), 0);
 	glBindTexture(GL_TEXTURE_2D, tex);
-	quad->draw();
+	//glUniformMatrix4fv(glGetUniformLocation(quadShader->getShaderId(), "model"), 1, GL_FALSE, value_ptr(mat4(1)));
+	//quad->draw();
 	sponza->draw();
 }
 

@@ -5,6 +5,8 @@ in vec2 Texcoord;
 out vec4 outColor;
 
 uniform sampler2D diffuse1;
+uniform sampler2D normal1;
+uniform sampler2D specular1;
 
 void main()
 {

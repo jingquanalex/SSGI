@@ -12,7 +12,7 @@ unsigned int loadTexture(string filepath)
 
 	if (it == listTextures.end())
 	{
-		cout << "Bitmap Loaded: " << filepath << endl;
+		cout << "Texture Loaded: " << filepath << endl;
 
 		int width, height, channels;
 		GLubyte* data = stbi_load(filepath.c_str(), &width, &height, &channels, 0);
@@ -20,6 +20,7 @@ unsigned int loadTexture(string filepath)
 		if (data == 0 || width == 0 || height == 0)
 		{
 			cout << "Error loading texture: " << filepath << endl;
+			stbi_image_free(data);
 			return -1;
 		}
 
@@ -27,12 +28,18 @@ unsigned int loadTexture(string filepath)
 		glGenTextures(1, &id);
 		glBindTexture(GL_TEXTURE_2D, id);
 
-		if (channels == 3)
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+		GLenum format;
+		if (channels == 1)
+			format = GL_RED;
+		else if (channels == 3)
+			format = GL_RGB;
 		else if (channels == 4)
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+			format = GL_RGBA;
 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
