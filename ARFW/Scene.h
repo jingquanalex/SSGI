@@ -13,7 +13,10 @@ private:
 
 	double currentTime, previousTime = 0.0;
 
-	Shader* quadShader;
+	GLuint gBuffer, gPosition, gNormal, gColor;
+	GLuint rboDepth;
+	Shader* gPassShader, * lightingPassShader;
+
 	Camera* camera;
 	Quad* quad;
 	Object* sponza;
