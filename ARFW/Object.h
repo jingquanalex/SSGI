@@ -11,7 +11,7 @@ class Object
 protected:
 
 	glm::mat4 matRotation;
-	glm::mat4 matModel, matNormal;
+	glm::mat4 matModel, matModelInverse;
 	glm::vec3 position, rotation, scale;
 	static GLuint defaultTexID;
 
@@ -27,7 +27,6 @@ protected:
 	bool isWireframeMode;
 
 	virtual void updateModelMatrix();
-	virtual void updateNormalMatrix();
 
 	void makeBoundingBoxData();
 

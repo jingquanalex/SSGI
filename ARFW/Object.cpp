@@ -16,7 +16,6 @@ Object::Object(vec3 position)
 	this->scale = vec3(1.0);
 
 	updateModelMatrix();
-	matNormal = mat4();
 	matRotation = mat4();
 
 	isBoundingBoxVisible = false;
@@ -70,6 +69,7 @@ void Object::draw()
 		}
 
 		glUniformMatrix4fv(glGetUniformLocation(gPassShaderId, "model"), 1, GL_FALSE, value_ptr(matModel));
+		glUniformMatrix4fv(glGetUniformLocation(gPassShaderId, "modelInverse"), 1, GL_FALSE, value_ptr(matModelInverse));
 		model->draw(gPassShaderId);
 
 		glEnable(GL_CULL_FACE);
@@ -88,11 +88,7 @@ void Object::updateModelMatrix()
 {
 	matRotation = eulerAngleXYZ(rotation.x, rotation.y, rotation.z);
 	matModel = translate(position) * glm::scale(scale) * matRotation;
-}
-
-void Object::updateNormalMatrix()
-{
-	matNormal = transpose(inverse(matModel));
+	matModelInverse = inverse(matModel);
 }
 
 // Make line strip vertices, also store the transformed vertices and face normals
@@ -172,14 +168,12 @@ void Object::setRotation(vec3 rotation)
 {
 	this->rotation = vec3(radians(rotation.x), radians(rotation.y), radians(rotation.z));
 	updateModelMatrix();
-	updateNormalMatrix();
 }
 
 void Object::setScale(vec3 scale)
 {
 	this->scale = scale;
 	updateModelMatrix();
-	updateNormalMatrix();
 }
 
 void Object::setBoundingBoxVisible(bool isVisible)

@@ -21,8 +21,33 @@ Scene::~Scene()
 	delete ssao;
 }
 
-void Scene::initialize()
+void Scene::initialize(nanogui::Screen* guiScreen)
 {
+	// Initialize GUI
+	this->guiScreen = guiScreen;
+	nanogui::FormHelper* gui = new nanogui::FormHelper(guiScreen);
+	nanogui::ref<nanogui::Window> nanoguiWindow = gui->addWindow(Eigen::Vector2i(10, 10), "ARFW");
+
+	gui->addGroup("SSAO");
+	gui->addVariable("ssaoKernelRadius", ssaoKernelRadius);
+	gui->addVariable("ssaoSampleBias", ssaoSampleBias);
+
+	guiScreen->setVisible(true);
+	guiScreen->performLayout();
+
+	glGenFramebuffers(1, &fboGui);
+	glBindFramebuffer(GL_FRAMEBUFFER, fboGui);
+
+	glGenTextures(1, &texGui);
+	glBindTexture(GL_TEXTURE_2D, texGui);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, g_windowWidth, g_windowHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texGui, 0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// Load framework objects
 	camera = new CameraFPS(g_windowWidth, g_windowHeight);
 	camera->setActive(true);
 	gPassShader = new Shader("gPass");
@@ -38,12 +63,14 @@ void Scene::initialize()
 	// Initialize CamMat uniform buffer
 	glGenBuffers(1, &uniform_CamMat);
 	glBindBuffer(GL_UNIFORM_BUFFER, uniform_CamMat);
-	glBufferData(GL_UNIFORM_BUFFER, 2 * sizeof(mat4), NULL, GL_DYNAMIC_DRAW);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, uniform_CamMat);
+	glBufferData(GL_UNIFORM_BUFFER, 4 * sizeof(mat4), NULL, GL_DYNAMIC_DRAW);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 9, uniform_CamMat);
 
 	// Set matrices to identity
 	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(mat4), value_ptr(mat4(1)));
 	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4), sizeof(mat4), value_ptr(mat4(1)));
+	glBufferSubData(GL_UNIFORM_BUFFER, 2 * sizeof(mat4), sizeof(mat4), value_ptr(mat4(1)));
+	glBufferSubData(GL_UNIFORM_BUFFER, 3 * sizeof(mat4), sizeof(mat4), value_ptr(mat4(1)));
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 	// Deferred rendering buffer
@@ -93,10 +120,13 @@ void Scene::initialize()
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gColor"), 2);
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gDepth"), 3);
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "texNoise"), 4);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "texGui"), 5);
 	glUniform3fv(glGetUniformLocation(lightingPassShader->getShaderId(), "samples"), 64, value_ptr(ssao->getKernel()[0]));
 
 	glEnable(GL_DEPTH_TEST);
 	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 void Scene::update()
@@ -108,10 +138,12 @@ void Scene::update()
 
 	camera->update(frameTime);
 
-	// Update uniform shader variables for CamMat
+	// Update CamMat uniform buffer
 	glBindBuffer(GL_UNIFORM_BUFFER, uniform_CamMat);
 	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(mat4), value_ptr(camera->getMatProjection()));
-	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4), sizeof(mat4), value_ptr(camera->getMatView()));
+	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4), sizeof(mat4), value_ptr(camera->getMatProjectionInverse()));
+	glBufferSubData(GL_UNIFORM_BUFFER, 2 * sizeof(mat4), sizeof(mat4), value_ptr(camera->getMatView()));
+	glBufferSubData(GL_UNIFORM_BUFFER, 3 * sizeof(mat4), sizeof(mat4), value_ptr(camera->getMatViewInverse()));
 }
 
 void Scene::render()
@@ -126,11 +158,25 @@ void Scene::render()
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+	// Draw gui
+	glBindFramebuffer(GL_FRAMEBUFFER, fboGui);
+	glViewport(0, 0, g_windowWidth, g_windowHeight);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+	guiScreen->drawWidgets();
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glEnable(GL_DEPTH_TEST);
+	glDisable(GL_BLEND); //fucks up pos and norm gtex
+
 	// Draw to quad
 	glViewport(0, 0, g_windowWidth, g_windowHeight);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	lightingPassShader->apply();
+
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, gPosition);
 	glActiveTexture(GL_TEXTURE1);
@@ -141,9 +187,13 @@ void Scene::render()
 	glBindTexture(GL_TEXTURE_2D, gDepth);
 	glActiveTexture(GL_TEXTURE4);
 	glBindTexture(GL_TEXTURE_2D, ssao->getNoiseTexId());
-	glUniform3fv(glGetUniformLocation(lightingPassShader->getShaderId(), "eyePos"), 1, value_ptr(camera->getPosition()));
+	glActiveTexture(GL_TEXTURE5);
+	glBindTexture(GL_TEXTURE_2D, texGui);
+	
 	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "screenWidth"), (float)g_windowWidth);
 	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "screenHeight"), (float)g_windowHeight);
+	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "kernelRadius"), ssaoKernelRadius);
+	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "sampleBias"), ssaoSampleBias);
 	quad->draw();
 }
 

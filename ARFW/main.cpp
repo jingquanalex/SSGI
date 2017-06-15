@@ -1,15 +1,19 @@
-#pragma once
 #include "Scene.h"
 
 std::string g_ExePath;
 int g_windowWidth = 1920;
 int g_windowHeight = 1080;
+
+nanogui::Screen* guiScreen;
 Scene scene;
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void cursorPosCallback(GLFWwindow* window, double x, double y);
 void mouseCallback(GLFWwindow* window, int button, int action, int mods);
-void windowSizeCallback(GLFWwindow* window, int x, int y);
+void windowSizeCallback(GLFWwindow* window, int w, int h);
+void charCallback(GLFWwindow* window, unsigned int codepoint);
+void dropCallback(GLFWwindow* window, int count, const char** paths);
+void scrollCallback(GLFWwindow* window, double x, double y);
 
 int main(int argc, char *argv[])
 {
@@ -21,23 +25,32 @@ int main(int argc, char *argv[])
 	glfwMakeContextCurrent(window);
 	glfwSwapInterval(1);
 
+	glfwWindowHint(GLFW_DEPTH_BITS, 32);
+
+	glewInit();
+
+	guiScreen = new nanogui::Screen();
+	guiScreen->initialize(window, false);
+	scene.initialize(guiScreen);
+
 	glfwSetKeyCallback(window, keyCallback);
 	glfwSetCursorPosCallback(window, cursorPosCallback);
 	glfwSetMouseButtonCallback(window, mouseCallback);
 	glfwSetWindowSizeCallback(window, windowSizeCallback);
+	glfwSetCharCallback(window, charCallback);
+	glfwSetDropCallback(window, dropCallback);
+	glfwSetScrollCallback(window, scrollCallback);
 	//glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
-	glewInit();
-	scene.initialize();
 
 	while (!glfwWindowShouldClose(window))
 	{
+		glfwPollEvents();
 		scene.update();
 		scene.render();
 		glfwSwapBuffers(window);
-		glfwPollEvents();
 	}
 
+	delete guiScreen;
 	glfwDestroyWindow(window);
 	glfwTerminate();
 	
@@ -52,21 +65,40 @@ static void keyCallback(GLFWwindow* window, int key, int scancode, int action, i
 	}
 
 	scene.keyCallback(key, action);
+	guiScreen->keyCallbackEvent(key, scancode, action, mods);
 }
 
 static void cursorPosCallback(GLFWwindow* window, double x, double y)
 {
 	scene.cursorPosCallback(x, y);
+	guiScreen->cursorPosCallbackEvent(x, y);
 }
 
 static void mouseCallback(GLFWwindow* window, int button, int action, int mods)
 {
 	scene.mouseCallback(button, action);
+	guiScreen->mouseButtonCallbackEvent(button, action, mods);
 }
 
-static void windowSizeCallback(GLFWwindow* window, int x, int y)
+static void windowSizeCallback(GLFWwindow* window, int w, int h)
 {
-	g_windowWidth = x;
-	g_windowHeight = y;
-	scene.windowSizeCallback(x, y);
+	g_windowWidth = w;
+	g_windowHeight = h;
+	scene.windowSizeCallback(w, h);
+	guiScreen->resizeCallbackEvent(w, h);
+}
+
+static void charCallback(GLFWwindow* window, unsigned int codepoint)
+{
+	guiScreen->charCallbackEvent(codepoint);
+}
+
+static void dropCallback(GLFWwindow* window, int count, const char** paths)
+{
+	guiScreen->dropCallbackEvent(count, paths);
+}
+
+static void scrollCallback(GLFWwindow* window, double x, double y)
+{
+	guiScreen->scrollCallbackEvent(x, y);
 }

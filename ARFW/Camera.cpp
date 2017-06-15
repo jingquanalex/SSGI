@@ -52,14 +52,14 @@ void Camera::updateProjectionMatrix()
 		matProjection = perspective(radians(fov), aspectRatio, zNear, zFar);
 	}
 
-	matInvProjection = inverse(matProjection);
+	matProjectionInverse = inverse(matProjection);
 }
 
 // Create view matrix based on position.
 void Camera::updateViewMatrix()
 {
 	matView = lookAt(position, position + direction, up);
-	matInvView = inverse(matView);
+	matViewInverse = inverse(matView);
 }
 
 void Camera::keyCallback(int key, int action)
@@ -150,9 +150,9 @@ mat4 Camera::getMatView() const
 	return matView;
 }
 
-mat4 Camera::getMatInvView() const
+mat4 Camera::getMatViewInverse() const
 {
-	return matInvView;
+	return matViewInverse;
 }
 
 mat4 Camera::getMatProjection() const
@@ -160,9 +160,9 @@ mat4 Camera::getMatProjection() const
 	return matProjection;
 }
 
-mat4 Camera::getMatInvProjection() const
+mat4 Camera::getMatProjectionInverse() const
 {
-	return matInvProjection;
+	return matProjectionInverse;
 }
 
 vec2 Camera::getResolution() const

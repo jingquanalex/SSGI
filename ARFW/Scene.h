@@ -6,6 +6,7 @@
 #include "CameraFPS.h"
 #include "Quad.h"
 #include "SSAO.h"
+#include <nanogui\nanogui.h>
 
 class Scene
 {
@@ -17,6 +18,8 @@ private:
 	GLuint gBuffer, gPosition, gNormal, gColor, gDepth;
 	Shader* gPassShader, * lightingPassShader;
 	SSAO* ssao;
+	float ssaoKernelRadius = 0.35f;
+	float ssaoSampleBias = 0.005f;
 
 	Camera* camera;
 	Quad* quad;
@@ -25,12 +28,16 @@ private:
 
 	GLuint uniform_CamMat;
 
+	nanogui::Screen* guiScreen;
+	nanogui::FormHelper *gui;
+	GLuint fboGui, texGui;
+
 public:
 
 	Scene();
 	~Scene();
 
-	void initialize();
+	void initialize(nanogui::Screen* guiScreen);
 	void update();
 	void render();
 
