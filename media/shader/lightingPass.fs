@@ -16,11 +16,18 @@ uniform sampler2D gPosition;
 uniform sampler2D gNormal;
 uniform sampler2D gColor;
 uniform sampler2D gDepth;
-uniform sampler2D texGui;
+uniform sampler2D dsColor;
+uniform sampler2D dsDepth;
 uniform float screenWidth;
 uniform float screenHeight;
-const vec2 noiseScale = vec2(screenWidth / 4, screenHeight / 4);
 
+// Display mode:
+// 1 - Full composite
+// 2 - Color only
+// 3 - SSAO only
+uniform int displayMode = 1;
+
+// SSAO variables
 const int kernelSize = 64;
 uniform float kernelRadius = 0.35f;
 uniform float sampleBias = 0.005;
@@ -33,12 +40,16 @@ void main()
 	vec3 position = texture(gPosition, Texcoord).xyz;
     vec3 normal = texture(gNormal, Texcoord).xyz;
     vec4 color = texture(gColor, Texcoord);
-    float alpha = texture(gColor, Texcoord).a;
 	float depth = texture(gDepth, Texcoord).r;
-	vec4 colorGui = texture(texGui, Texcoord);
 	
+	// Depth sensor textures
+	vec2 Texcoordfv = vec2(Texcoord.x, 1.0 - Texcoord.y);
+	vec4 dcolor = texture(dsColor, Texcoordfv);
+	float ddepth = texture(dsDepth, Texcoordfv).r;
+	
+	// SSAO occlusion
+	vec2 noiseScale = vec2(screenWidth / 4, screenHeight / 4);
 	vec3 randomVec = texture(texNoise, Texcoord * noiseScale).xyz;
-	
 	vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
 	vec3 bitangent = cross(normal, tangent);
 	mat3 TBN = mat3(tangent, bitangent, normal);
@@ -61,7 +72,26 @@ void main()
 	}
 	occlusion = 1.0 - (occlusion / kernelSize);
 	
-	color += colorGui;
-	outColor = color * occlusion;
-	//outColor = colorGui;
+	switch (displayMode)
+	{
+		case 1:
+			outColor = color * occlusion;
+			break;
+		
+		case 2:
+			outColor = color;
+			break;
+			
+		case 3:
+			outColor = vec4(occlusion);
+			break;
+			
+		case 4:
+			outColor = dcolor;
+			break;
+			
+		case 5:
+			outColor = vec4(ddepth);
+			break;
+	}
 }

@@ -1,12 +1,16 @@
 #pragma once
 
 #include "global.h"
+#include <nanogui\nanogui.h>
 #include "Timer.h"
 #include "Shader.h"
 #include "CameraFPS.h"
 #include "Quad.h"
 #include "SSAO.h"
-#include <nanogui\nanogui.h>
+#include "DSensor.h"
+
+#include <chrono>
+#include <thread>
 
 class Scene
 {
@@ -30,7 +34,8 @@ private:
 
 	nanogui::Screen* guiScreen;
 	nanogui::FormHelper *gui;
-	GLuint fboGui, texGui;
+
+	DSensor* sensor;
 
 public:
 
