@@ -65,5 +65,7 @@ public:
 	bool getActive() const;
 	float getNearPlane() const;
 	float getFarPlane() const;
+	float getAspectRatio() const;
+	float getFOV() const;
 
 };

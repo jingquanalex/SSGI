@@ -134,6 +134,20 @@ void DSensor::initialize(GLuint texSize)
 		printf("\tOK\n");
 		initOk = true;
 	}
+
+	glGenTextures(1, &gltexColorMap);
+	glBindTexture(GL_TEXTURE_2D, gltexColorMap);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	glGenTextures(1, &gltexDepthMap);
+	glBindTexture(GL_TEXTURE_2D, gltexDepthMap);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	//openni::CoordinateConverter::convertDepthToWorld
 }
 
 void DSensor::render()
@@ -186,6 +200,9 @@ void DSensor::render()
 			pImageRow += rowSize;
 			pTexRow += texWidth;
 		}
+
+		glBindTexture(GL_TEXTURE_2D, gltexColorMap);
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RGB, GL_UNSIGNED_BYTE, texColorMap);
 	}
 
 	// check if we need to draw depth frame to texture
@@ -219,21 +236,10 @@ void DSensor::render()
 			pDepthRow += rowSize;
 			pTexRow += texWidth;
 		}
+
+		glBindTexture(GL_TEXTURE_2D, gltexDepthMap);
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RGB, GL_UNSIGNED_BYTE, texDepthMap);
 	}
-
-	glGenTextures(1, &gltexColorMap);
-	glBindTexture(GL_TEXTURE_2D, gltexColorMap);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, texColorMap);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-	glGenTextures(1, &gltexDepthMap);
-	glBindTexture(GL_TEXTURE_2D, gltexDepthMap);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, texDepthMap);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 GLuint DSensor::getColorMapId() const

@@ -34,6 +34,13 @@ uniform float sampleBias = 0.005;
 uniform sampler2D texNoise;
 uniform vec3 samples[kernelSize];
 
+vec3 getViewPositionFromDepth(float depth, vec2 texcoord)
+{
+    vec4 clipPosition = vec4(texcoord * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+    vec4 viewPosition = projectionInverse * clipPosition;
+    return (viewPosition / viewPosition.w).xyz;
+}
+
 void main()
 {
 	// Position and normal are view space
@@ -44,8 +51,12 @@ void main()
 	
 	// Depth sensor textures
 	vec2 Texcoordfv = vec2(Texcoord.x, 1.0 - Texcoord.y);
-	vec4 dcolor = texture(dsColor, Texcoordfv);
-	float ddepth = texture(dsDepth, Texcoordfv).r;
+	vec4 dscolor = texture(dsColor, Texcoordfv);
+	float dsdepth = texture(dsDepth, Texcoordfv).r;
+	
+	// Reconstructed position from depth
+	position = getViewPositionFromDepth(depth, Texcoord);
+	//position = getViewPositionFromDepth(dsdepth, Texcoordfv);
 	
 	// SSAO occlusion
 	vec2 noiseScale = vec2(screenWidth / 4, screenHeight / 4);
@@ -59,6 +70,7 @@ void main()
 	for(int i = 0; i < kernelSize; ++i)
 	{
 		vec3 fsample = TBN * samples[i];
+		//vec3 fsample = samples[i];
 		fsample = position + fsample * kernelRadius;
 		
 		vec4 offset = vec4(fsample, 1.0);
@@ -66,7 +78,10 @@ void main()
         offset.xyz /= offset.w; // perspective divide
         offset.xyz = offset.xyz * 0.5 + 0.5; // transform to range 0.0 - 1.0
 		
-		float sampleDepth = texture(gPosition, offset.xy).z;
+		//float sampleDepth = texture(gPosition, offset.xy).z;
+		float sampleDepth = getViewPositionFromDepth(texture(gDepth, offset.xy).r, offset.xy).z;
+		//offset.y = 1.0 - offset.y;
+		//float sampleDepth = getViewPositionFromDepth(texture(dsDepth, offset.xy).r, offset.xy).z;
 		float rangeCheck = smoothstep(0.0, 1.0, kernelRadius / abs(position.z - sampleDepth));
 		occlusion += (sampleDepth >= fsample.z + sampleBias ? 1.0 : 0.0) * rangeCheck;
 	}
@@ -79,7 +94,7 @@ void main()
 			break;
 		
 		case 2:
-			outColor = color;
+			outColor = vec4(position, 1);
 			break;
 			
 		case 3:
@@ -87,11 +102,15 @@ void main()
 			break;
 			
 		case 4:
-			outColor = dcolor;
+			outColor = dscolor;
 			break;
 			
 		case 5:
-			outColor = vec4(ddepth);
+			outColor = vec4(dsdepth);
+			break;
+			
+		case 6:
+			outColor = dscolor * occlusion;
 			break;
 	}
 }

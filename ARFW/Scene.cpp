@@ -26,7 +26,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 {
 	// Initialize depth sensor
 	sensor = new DSensor();
-	//sensor->initialize(512);
+	sensor->initialize(512);
 	
 	// Load framework objects
 	camera = new CameraFPS(g_windowWidth, g_windowHeight);
@@ -176,7 +176,7 @@ void Scene::render()
 	glBindTexture(GL_TEXTURE_2D, sensor->getColorMapId());
 	glActiveTexture(GL_TEXTURE6);
 	glBindTexture(GL_TEXTURE_2D, sensor->getDepthMapId());
-	
+
 	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "screenWidth"), (float)g_windowWidth);
 	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "screenHeight"), (float)g_windowHeight);
 	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "kernelRadius"), ssaoKernelRadius);
@@ -218,6 +218,11 @@ void Scene::keyCallback(int key, int action)
 	{
 		lightingPassShader->apply();
 		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), 5);
+	}
+	else if (key == GLFW_KEY_6 && action == GLFW_PRESS)
+	{
+		lightingPassShader->apply();
+		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), 6);
 	}
 }
 

@@ -22,8 +22,8 @@ private:
 	GLuint gBuffer, gPosition, gNormal, gColor, gDepth;
 	Shader* gPassShader, * lightingPassShader;
 	SSAO* ssao;
-	float ssaoKernelRadius = 0.35f;
-	float ssaoSampleBias = 0.005f;
+	float ssaoKernelRadius = 10.35f;
+	float ssaoSampleBias = 0.1f;
 
 	Camera* camera;
 	Quad* quad;

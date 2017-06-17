@@ -214,3 +214,13 @@ float Camera::getFarPlane() const
 {
 	return zFar;
 }
+
+float Camera::getAspectRatio() const
+{
+	return aspectRatio;
+}
+
+float Camera::getFOV() const
+{
+	return fov;
+}
