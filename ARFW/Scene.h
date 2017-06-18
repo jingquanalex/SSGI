@@ -24,6 +24,7 @@ private:
 	SSAO* ssao;
 	float ssaoKernelRadius = 10.35f;
 	float ssaoSampleBias = 0.1f;
+	int bufferWidth, bufferHeight;
 
 	Camera* camera;
 	Quad* quad;
