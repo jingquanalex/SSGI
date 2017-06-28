@@ -13,7 +13,8 @@ private:
 	typedef std::pair<GLuint, std::string> IdNamePair;
 	static std::vector<IdNamePair> shaderList;
 
-	GLuint shaderId;
+	int success;
+	GLuint shaderId = 0;
 	std::string shaderName;
 
 	std::string readShaderFile(std::string filename);
@@ -25,8 +26,10 @@ public:
 	~Shader();
 
 	void apply();
+	void recompile();
 
+	bool hasError() const;
 	GLuint getShaderId() const;
 	std::string getShaderName() const;
-
+	
 };

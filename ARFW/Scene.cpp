@@ -13,28 +13,48 @@ Scene::Scene()
 
 Scene::~Scene()
 {
-	delete sensor;
-	delete camera;
-	delete gPassShader;
-	delete lightingPassShader;
-	delete quad;
-	delete sponza;
-	delete ssao;
+	if (sensor != nullptr) delete sensor;
+	if (camera != nullptr) delete camera;
+	if (gPassShader != nullptr) delete gPassShader;
+	if (lightingPassShader != nullptr) delete lightingPassShader;
+	if (quad != nullptr) delete quad;
+	if (sponza != nullptr) delete sponza;
+	if (ssao != nullptr) delete ssao;
+}
+
+void Scene::recompileShaders()
+{
+	gPassShader->recompile();
+	lightingPassShader->recompile();
+	initializeShaders();
+}
+
+void Scene::initializeShaders()
+{
+	lightingPassShader->apply();
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gPosition"), 0);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gNormal"), 1);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gColor"), 2);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gDepth"), 3);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "texNoise"), 4);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "dsColor"), 5);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "dsDepth"), 6);
+	glUniform3fv(glGetUniformLocation(lightingPassShader->getShaderId(), "samples"), 64, value_ptr(ssao->getKernel()[0]));
 }
 
 void Scene::initialize(nanogui::Screen* guiScreen)
 {
-	// Initialize depth sensor
-	sensor = new DSensor();
-	sensor->initialize(512);
-	
 	// Load framework objects
 	bufferWidth = g_windowWidth;
 	bufferHeight = g_windowHeight;
 	camera = new CameraFPS(g_windowWidth, g_windowHeight);
 	camera->setActive(true);
 	gPassShader = new Shader("gPass");
+	if (gPassShader->hasError()) return;
 	lightingPassShader = new Shader("lightingPass");
+	if (lightingPassShader->hasError()) return;
+
 	quad = new Quad();
 	sponza = new Object();
 	sponza->setGPassShaderId(gPassShader->getShaderId());
@@ -43,10 +63,20 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	//sponza->load("sibenik/sibenik.obj");
 	tex = Image::loadTexture(g_ExePath + "../../media/sibenik/kamen.png");
 
+	// Initialize depth sensor
+	sensor = new DSensor();
+	sensor->initialize(g_windowWidth, g_windowHeight);
+
 	// Initialize GUI
 	this->guiScreen = guiScreen;
-	nanogui::FormHelper* gui = new nanogui::FormHelper(guiScreen);
-	nanogui::ref<nanogui::Window> nanoguiWindow = gui->addWindow(Eigen::Vector2i(10, 10), "ARFW");
+	gui = new nanogui::FormHelper(guiScreen);
+	nanoguiWindow = gui->addWindow(Eigen::Vector2i(10, 10), "ARFW");
+
+	gui->addGroup("Shader");
+	gui->addButton("Recompile", [&]()
+	{
+		recompileShaders();
+	});
 
 	gui->addGroup("SSAO");
 	gui->addVariable("ssaoKernelRadius", ssaoKernelRadius);
@@ -58,7 +88,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	// Initialize CamMat uniform buffer
 	glGenBuffers(1, &uniform_CamMat);
 	glBindBuffer(GL_UNIFORM_BUFFER, uniform_CamMat);
-	glBufferData(GL_UNIFORM_BUFFER, 4 * sizeof(mat4), NULL, GL_DYNAMIC_DRAW);
+	glBufferData(GL_UNIFORM_BUFFER, 6 * sizeof(mat4), NULL, GL_DYNAMIC_DRAW);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 9, uniform_CamMat);
 
 	// Set matrices to identity
@@ -66,6 +96,8 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4), sizeof(mat4), value_ptr(mat4(1)));
 	glBufferSubData(GL_UNIFORM_BUFFER, 2 * sizeof(mat4), sizeof(mat4), value_ptr(mat4(1)));
 	glBufferSubData(GL_UNIFORM_BUFFER, 3 * sizeof(mat4), sizeof(mat4), value_ptr(mat4(1)));
+	glBufferSubData(GL_UNIFORM_BUFFER, 4 * sizeof(mat4), sizeof(mat4), value_ptr(mat4(1)));
+	glBufferSubData(GL_UNIFORM_BUFFER, 5 * sizeof(mat4), sizeof(mat4), value_ptr(mat4(1)));
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 	// Deferred rendering buffer
@@ -108,25 +140,21 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	// Init SSAO shader data
 	ssao = new SSAO();
 
-	// Set lightingPass sampler binding ids
-	lightingPassShader->apply();
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gPosition"), 0);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gNormal"), 1);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gColor"), 2);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gDepth"), 3);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "texNoise"), 4);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "dsColor"), 5);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "dsDepth"), 6);
-	glUniform3fv(glGetUniformLocation(lightingPassShader->getShaderId(), "samples"), 64, value_ptr(ssao->getKernel()[0]));
+	// Init shader uniforms
+	initializeShaders();
 
 	glEnable(GL_DEPTH_TEST);
 	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 	//glEnable(GL_BLEND);
 	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	initSuccess = true;
 }
 
 void Scene::update()
 {
+	if (!initSuccess) return;
+
 	// Calculate per frame time interval
 	currentTime = glfwGetTime();
 	float frameTime = (float)(currentTime - previousTime);
@@ -140,10 +168,14 @@ void Scene::update()
 	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4), sizeof(mat4), value_ptr(camera->getMatProjectionInverse()));
 	glBufferSubData(GL_UNIFORM_BUFFER, 2 * sizeof(mat4), sizeof(mat4), value_ptr(camera->getMatView()));
 	glBufferSubData(GL_UNIFORM_BUFFER, 3 * sizeof(mat4), sizeof(mat4), value_ptr(camera->getMatViewInverse()));
+	glBufferSubData(GL_UNIFORM_BUFFER, 4 * sizeof(mat4), sizeof(mat4), value_ptr(sensor->getMatProjection()));
+	glBufferSubData(GL_UNIFORM_BUFFER, 5 * sizeof(mat4), sizeof(mat4), value_ptr(sensor->getMatProjectionInverse()));
 }
 
 void Scene::render()
 {
+	if (!initSuccess) return;
+
 	// Render depth sensor textures
 	sensor->render();
 
@@ -193,38 +225,51 @@ void Scene::render()
 
 void Scene::keyCallback(int key, int action)
 {
+	if (nanoguiWindow != nullptr && nanoguiWindow->focused()) return;
+
 	camera->keyCallback(key, action);
+
+	if (key == GLFW_KEY_R && action == GLFW_PRESS)
+	{
+		recompileShaders();
+	}
 
 	// Shader modes
 	if (key == GLFW_KEY_1 && action == GLFW_PRESS)
 	{
+		renderMode = 1;
 		lightingPassShader->apply();
-		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), 1);
+		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
 	}
 	else if (key == GLFW_KEY_2 && action == GLFW_PRESS)
 	{
+		renderMode = 2;
 		lightingPassShader->apply();
-		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), 2);
+		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
 	}
 	else if (key == GLFW_KEY_3 && action == GLFW_PRESS)
 	{
+		renderMode = 3;
 		lightingPassShader->apply();
-		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), 3);
+		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
 	}
 	else if (key == GLFW_KEY_4 && action == GLFW_PRESS)
 	{
+		renderMode = 4;
 		lightingPassShader->apply();
-		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), 4);
+		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
 	}
 	else if (key == GLFW_KEY_5 && action == GLFW_PRESS)
 	{
+		renderMode = 5;
 		lightingPassShader->apply();
-		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), 5);
+		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
 	}
 	else if (key == GLFW_KEY_6 && action == GLFW_PRESS)
 	{
+		renderMode = 6;
 		lightingPassShader->apply();
-		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), 6);
+		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
 	}
 }
 

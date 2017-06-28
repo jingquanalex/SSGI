@@ -18,7 +18,7 @@ DSensor::~DSensor()
 	}
 }
 
-void DSensor::initialize(GLuint texSize)
+void DSensor::initialize(int windowWidth, int windowHeight)
 {
 	printf("Initializing OpenNI:\n");
 
@@ -43,6 +43,16 @@ void DSensor::initialize(GLuint texSize)
 	rc = depthStream.create(device, openni::SENSOR_DEPTH);
 	if (rc == openni::STATUS_OK)
 	{
+		const openni::SensorInfo* sensorInfo = device.getSensorInfo(openni::SENSOR_DEPTH);
+		const openni::Array<openni::VideoMode>& supportedVideoModes = sensorInfo->getSupportedVideoModes();
+
+		printf("Supported depth video modes: \n");
+		for (int i = 0; i < supportedVideoModes.getSize(); i++)
+		{
+			printf("%i: %ix%i, %i fps, %i format\n", i, supportedVideoModes[i].getResolutionX(), supportedVideoModes[i].getResolutionY(),
+				supportedVideoModes[i].getFps(), supportedVideoModes[i].getPixelFormat());
+		}
+
 		rc = depthStream.start();
 		if (rc != openni::STATUS_OK)
 		{
@@ -119,11 +129,19 @@ void DSensor::initialize(GLuint texSize)
 	streams[0] = &depthStream;
 	streams[1] = &colorStream;
 
+	// Create projection matrix (depth)
+	float fovX = glm::degrees(depthStream.getHorizontalFieldOfView());
+	float fovY = glm::degrees(depthStream.getVerticalFieldOfView());
+	float w = (float)windowWidth / videoWidth * fovX;
+	float h = (float)windowHeight / videoHeight * fovY;
+	matProjection = glm::perspective(glm::radians(fovY), w / h, 0.1f, 1000.0f);
+	matProjectionInverse = inverse(matProjection);
+
 	// Texture map init
-	// Assume texture is square, color and depth size are same
-	this->texSize = texSize;
-	texWidth = minChunkSize(videoWidth, texSize);
-	texHeight = minChunkSize(videoHeight, texSize);
+	//texWidth = minChunkSize(videoWidth, texSize);
+	//texHeight = minChunkSize(videoHeight, texSize);
+	texWidth = videoWidth;
+	texHeight = videoHeight;
 	texColorMap = new openni::RGB888Pixel[texWidth * texHeight];
 	texDepthMap = new openni::RGB888Pixel[texWidth * texHeight];
 
@@ -146,8 +164,6 @@ void DSensor::initialize(GLuint texSize)
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-	//openni::CoordinateConverter::convertDepthToWorld
 }
 
 void DSensor::render()
@@ -229,13 +245,16 @@ void DSensor::render()
 					int nHistValue = (int)depthHist[*pDepth];
 					pTex->r = nHistValue;
 					pTex->g = nHistValue;
-					pTex->b = 0;
+					pTex->b = nHistValue;
 				}
 			}
 
 			pDepthRow += rowSize;
 			pTexRow += texWidth;
 		}
+
+		//openni::DepthPixel *depthPixels = new openni::DepthPixel[depthFrame.getHeight()*depthFrame.getWidth()];
+		//memcpy(depthPixels, depthFrame.getData(), depthFrame.getHeight()*depthFrame.getWidth() * sizeof(uint16_t));
 
 		glBindTexture(GL_TEXTURE_2D, gltexDepthMap);
 		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RGB, GL_UNSIGNED_BYTE, texDepthMap);
@@ -250,6 +269,16 @@ GLuint DSensor::getColorMapId() const
 GLuint DSensor::getDepthMapId() const
 {
 	return gltexDepthMap;
+}
+
+glm::mat4 DSensor::getMatProjection() const
+{
+	return matProjection;
+}
+
+glm::mat4 DSensor::getMatProjectionInverse() const
+{
+	return matProjectionInverse;
 }
 
 GLuint DSensor::minNumChunks(GLuint dataSize, GLuint chunkSize)

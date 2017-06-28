@@ -18,6 +18,7 @@ Shader::Shader(string shadername)
 	{
 		cout << "Shader Loaded: " << shadername << endl;
 		shaderId = compileShader(shadername);
+		shaderName = shadername;
 		if (shaderId)
 		{
 			shaderList.push_back(make_pair(shaderId, shadername));
@@ -26,6 +27,7 @@ Shader::Shader(string shadername)
 	else
 	{
 		shaderId = it->first;
+		shaderName = it->second;
 	}
 }
 
@@ -37,6 +39,17 @@ Shader::~Shader()
 void Shader::apply()
 {
 	glUseProgram(shaderId);
+}
+
+void Shader::recompile()
+{
+	cout << "Shader recompiled: " << shaderName << endl;
+	if (shaderId != 0) compileShader(shaderName);
+}
+
+bool Shader::hasError() const
+{
+	return !success;
 }
 
 GLuint Shader::getShaderId() const
@@ -90,9 +103,6 @@ GLuint Shader::compileShader(string name)
 	glCompileShader(vertShader);
 	glCompileShader(fragShader);
 
-	// Error checking
-	int success;
-
 	glGetShaderiv(vertShader, GL_COMPILE_STATUS, &success);
 	if (success == GL_FALSE)
 	{
@@ -120,9 +130,9 @@ GLuint Shader::compileShader(string name)
 	}
 
 	// Link shaders
-	GLuint program = glCreateProgram();
-	glAttachShader(program, vertShader);
-	glAttachShader(program, fragShader);
+	if (shaderId == 0) shaderId = glCreateProgram();
+	glAttachShader(shaderId, vertShader);
+	glAttachShader(shaderId, fragShader);
 
 	// Compile and link geometry shader if available
 	GLuint geomShader;
@@ -146,31 +156,31 @@ GLuint Shader::compileShader(string name)
 			return 0;
 		}
 
-		glAttachShader(program, geomShader);
+		glAttachShader(shaderId, geomShader);
 	}
 
-	glLinkProgram(program);
+	glLinkProgram(shaderId);
 
 	// Linking error checking
-	glGetShaderiv(program, GL_LINK_STATUS, &success);
+	glGetShaderiv(shaderId, GL_LINK_STATUS, &success);
 	if (success == GL_FALSE)
 	{
 		GLint logLength;
-		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
+		glGetProgramiv(shaderId, GL_INFO_LOG_LENGTH, &logLength);
 		vector<char> infoLog(logLength);
-		glGetProgramInfoLog(program, logLength, &logLength, &infoLog[0]);
+		glGetProgramInfoLog(shaderId, logLength, &logLength, &infoLog[0]);
 		cout << "=== LINKING SHADER ERROR ===" << endl;
 		cout << &infoLog[0] << endl;
 		glDeleteShader(vertShader);
 		glDeleteShader(fragShader);
 		if (gs != "") glDeleteShader(geomShader);
-		glDeleteProgram(program);
+		glDeleteProgram(shaderId);
 		return 0;
 	}
 
-	glDetachShader(program, vertShader);
-	glDetachShader(program, fragShader);
-	if (gs != "") glDetachShader(program, geomShader);
+	glDetachShader(shaderId, vertShader);
+	glDetachShader(shaderId, fragShader);
+	if (gs != "") glDetachShader(shaderId, geomShader);
 
-	return program;
+	return shaderId;
 }

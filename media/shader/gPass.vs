@@ -6,7 +6,7 @@ layout (location = 2) in vec2 texcoord;
 
 out vec3 Position;
 out vec3 Normal;
-out vec2 Texcoord;
+out vec2 TexCoord;
 
 layout (std140, binding = 9) uniform MatCam
 {
@@ -14,6 +14,8 @@ layout (std140, binding = 9) uniform MatCam
 	mat4 projectionInverse;
     mat4 view;
 	mat4 viewInverse;
+	mat4 kinectProjection;
+	mat4 kinectProjectionInverse;
 };
 
 uniform mat4 model;
@@ -25,6 +27,6 @@ void main()
 	vec4 viewPos = view * model * vec4(position, 1.0);
 	Position = viewPos.xyz;
 	Normal = transpose(mat3(viewInverse * modelInverse)) * normal;
-	Texcoord = texcoord;
+	TexCoord = texcoord;
 	gl_Position = projection * viewPos;
 }

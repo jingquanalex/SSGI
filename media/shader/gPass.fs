@@ -2,7 +2,7 @@
 
 in vec3 Position;
 in vec3 Normal;
-in vec2 Texcoord;
+in vec2 TexCoord;
 
 layout (location = 0) out vec3 gPosition;
 layout (location = 1) out vec3 gNormal;
@@ -16,6 +16,6 @@ void main()
 {
 	gPosition = Position;
 	gNormal = normalize(Normal);
-	gColor = texture(diffuse1, Texcoord);
-	//gColor.a = texture(specular1, Texcoord).a;
+	gColor = texture(diffuse1, TexCoord);
+	//gColor.a = texture(specular1, TexCoord).a;
 }

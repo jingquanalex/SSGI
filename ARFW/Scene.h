@@ -17,26 +17,33 @@ class Scene
 	
 private:
 
+	bool initSuccess = false;
 	double currentTime, previousTime = 0.0;
 
 	GLuint gBuffer, gPosition, gNormal, gColor, gDepth;
-	Shader* gPassShader, * lightingPassShader;
-	SSAO* ssao;
+	Shader* gPassShader = nullptr;
+	Shader* lightingPassShader = nullptr;
+	SSAO* ssao = nullptr;
 	float ssaoKernelRadius = 10.35f;
 	float ssaoSampleBias = 0.1f;
 	int bufferWidth, bufferHeight;
 
-	Camera* camera;
-	Quad* quad;
-	Object* sponza;
+	Camera* camera = nullptr;
+	Quad* quad = nullptr;
+	Object* sponza = nullptr;
 	GLuint tex;
 
 	GLuint uniform_CamMat;
+	int renderMode = 1;
 
-	nanogui::Screen* guiScreen;
-	nanogui::FormHelper *gui;
+	nanogui::Screen* guiScreen = nullptr;
+	nanogui::FormHelper *gui = nullptr;
+	nanogui::ref<nanogui::Window> nanoguiWindow = nullptr;
 
-	DSensor* sensor;
+	DSensor* sensor = nullptr;
+
+	void recompileShaders();
+	void initializeShaders();
 
 public:
 
