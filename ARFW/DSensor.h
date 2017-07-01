@@ -10,13 +10,13 @@ class DSensor
 
 private:
 
-	bool hasError = false, initOk = false;
+	bool hasError = false, initOk = false, isRendering = true;;
 	openni::Device device;
 	openni::VideoStream depthStream, colorStream;
 	openni::VideoStream** streams;
 	GLuint texWidth, texHeight;
 	openni::RGB888Pixel* texColorMap;
-	openni::RGB888Pixel* texDepthMap;
+	unsigned short* texDepthMap;
 
 	GLuint gltexColorMap, gltexDepthMap;
 
@@ -38,5 +38,6 @@ public:
 	GLuint getDepthMapId() const;
 	glm::mat4 getMatProjection() const;
 	glm::mat4 getMatProjectionInverse() const;
+	void toggleRendering();
 
 };

@@ -143,7 +143,7 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 	texWidth = videoWidth;
 	texHeight = videoHeight;
 	texColorMap = new openni::RGB888Pixel[texWidth * texHeight];
-	texDepthMap = new openni::RGB888Pixel[texWidth * texHeight];
+	texDepthMap = new unsigned short[texWidth * texHeight];
 
 	device.setImageRegistrationMode(openni::IMAGE_REGISTRATION_DEPTH_TO_COLOR);
 
@@ -158,17 +158,21 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 	glGenTextures(1, &gltexDepthMap);
 	glBindTexture(GL_TEXTURE_2D, gltexDepthMap);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16UI, texWidth, texHeight, 0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 
 void DSensor::render()
 {
-	if (!initOk) return;
+	if (!initOk || !isRendering) return;
 
 	int changedIndex;
 	openni::Status rc = openni::OpenNI::waitForAnyStream(streams, 2, &changedIndex);
@@ -197,32 +201,22 @@ void DSensor::render()
 	// check if we need to draw image frame to texture
 	if (colorFrame.isValid())
 	{
-		memset(texColorMap, 0, texWidth * texHeight * sizeof(openni::RGB888Pixel));
-
-		const openni::RGB888Pixel* pImageRow = (const openni::RGB888Pixel*)colorFrame.getData();
-		openni::RGB888Pixel* pTexRow = texColorMap + colorFrame.getCropOriginY() * texWidth;
-		int rowSize = colorFrame.getStrideInBytes() / sizeof(openni::RGB888Pixel);
-
-		for (int y = 0; y < colorFrame.getHeight(); ++y)
-		{
-			const openni::RGB888Pixel* pImage = pImageRow;
-			openni::RGB888Pixel* pTex = pTexRow + colorFrame.getCropOriginX();
-
-			for (int x = 0; x < colorFrame.getWidth(); ++x, ++pImage, ++pTex)
-			{
-				*pTex = *pImage;
-			}
-
-			pImageRow += rowSize;
-			pTexRow += texWidth;
-		}
-
+		const openni::RGB888Pixel* imageBuffer = (const openni::RGB888Pixel*)colorFrame.getData();
+		memcpy(texColorMap, imageBuffer, colorFrame.getWidth() * colorFrame.getHeight() * 3 * sizeof(uint8_t));
 		glBindTexture(GL_TEXTURE_2D, gltexColorMap);
 		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RGB, GL_UNSIGNED_BYTE, texColorMap);
 	}
 
-	// check if we need to draw depth frame to texture
 	if (depthFrame.isValid())
+	{
+		const uint16_t *depthPixels = (const uint16_t*)depthFrame.getData();
+		memcpy(texDepthMap, depthPixels, depthFrame.getWidth() * depthFrame.getHeight() * sizeof(uint16_t));
+		glBindTexture(GL_TEXTURE_2D, gltexDepthMap);
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RED_INTEGER, GL_UNSIGNED_SHORT, texDepthMap);
+	}
+
+	// check if we need to draw depth frame to texture
+	/*if (depthFrame.isValid())
 	{
 		memset(texDepthMap, 0, texWidth * texHeight * sizeof(openni::RGB888Pixel));
 
@@ -258,7 +252,7 @@ void DSensor::render()
 
 		glBindTexture(GL_TEXTURE_2D, gltexDepthMap);
 		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RGB, GL_UNSIGNED_BYTE, texDepthMap);
-	}
+	}*/
 }
 
 GLuint DSensor::getColorMapId() const
@@ -279,6 +273,11 @@ glm::mat4 DSensor::getMatProjection() const
 glm::mat4 DSensor::getMatProjectionInverse() const
 {
 	return matProjectionInverse;
+}
+
+void DSensor::toggleRendering()
+{
+	isRendering = !isRendering;
 }
 
 GLuint DSensor::minNumChunks(GLuint dataSize, GLuint chunkSize)
