@@ -38,6 +38,7 @@ public:
 	virtual void load(std::string modelname);
 	virtual void update(float dt);
 	virtual void draw();
+	void drawMeshOnly();
 
 	// === Accessors ===
 

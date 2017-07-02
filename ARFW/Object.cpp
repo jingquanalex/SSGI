@@ -84,6 +84,13 @@ void Object::draw()
 	}
 }
 
+void Object::drawMeshOnly()
+{
+	glUniformMatrix4fv(glGetUniformLocation(gPassShaderId, "model"), 1, GL_FALSE, value_ptr(matModel));
+	glUniformMatrix4fv(glGetUniformLocation(gPassShaderId, "modelInverse"), 1, GL_FALSE, value_ptr(matModelInverse));
+	model->drawMeshOnly();
+}
+
 void Object::updateModelMatrix()
 {
 	matRotation = eulerAngleXYZ(rotation.x, rotation.y, rotation.z);

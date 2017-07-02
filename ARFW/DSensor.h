@@ -16,7 +16,7 @@ private:
 	openni::VideoStream** streams;
 	GLuint texWidth, texHeight;
 	openni::RGB888Pixel* texColorMap;
-	unsigned short* texDepthMap;
+	uint16_t* texDepthMap;
 
 	GLuint gltexColorMap, gltexDepthMap;
 

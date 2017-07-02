@@ -11,5 +11,6 @@ namespace Image
 	typedef std::pair<GLuint, std::string> IdNamePair;
 	static std::vector<IdNamePair> listTextures;
 
-	unsigned int loadTexture(std::string filepath);
+	GLuint loadTexture(std::string filepath);
+	GLuint loadHDRI(std::string filepath);
 }

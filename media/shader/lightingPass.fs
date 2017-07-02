@@ -1,6 +1,7 @@
 #version 450
 
 in vec2 TexCoord;
+in vec3 LightPosition;
 
 out vec4 outColor;
 
@@ -19,7 +20,8 @@ uniform sampler2D gNormal;
 uniform sampler2D gColor;
 uniform sampler2D gDepth;
 uniform sampler2D dsColor;
-uniform usampler2D dsDepth;
+uniform sampler2D dsDepth;
+uniform samplerCube irradianceMap;
 uniform float screenWidth;
 uniform float screenHeight;
 
@@ -36,6 +38,13 @@ uniform float sampleBias = 0.005;
 uniform sampler2D texNoise;
 uniform vec3 samples[kernelSize];
 
+// Render variables
+uniform vec3 lightColor;
+uniform float metallic;
+uniform float roughness;
+
+const float PI = 3.14159265359;
+
 // Helper functions
 
 vec3 depthToViewPosition(float depth, vec2 texcoord)
@@ -48,12 +57,11 @@ vec3 depthToViewPosition(float depth, vec2 texcoord)
 const float fx = tan(radians(61.9999962) / 2) * 2;
 const float fy = tan(radians(48.5999985) / 2) * 2;
 
-vec3 dsDepthToWorldPosition(usampler2D samplerDepth, vec2 texcoord)
+vec3 dsDepthToWorldPosition(sampler2D samplerDepth, vec2 texcoord)
 {
 	float z = texture(samplerDepth, texcoord).r;
-	z /= 3000;
-	float x = (texcoord.x - 0.5) * z * fx*10;
-	float y = (0.7 - texcoord.y) * z * fy*10;
+	float x = (texcoord.x - 0.5) * z * fx;
+	float y = (0.5 - texcoord.y) * z * fy;
 	return vec3(x, y, z);
 }
 
@@ -73,13 +81,110 @@ float LinearizeDepth(float depth)
     return (2.0 * nearPlane * farPlane) / (farPlane + nearPlane - z * (farPlane - nearPlane)) / farPlane;
 }
 
+// Rendering
+
+float DistributionGGX(vec3 N, vec3 H, float roughness)
+{
+    float a      = roughness*roughness;
+    float a2     = a*a;
+    float NdotH  = max(dot(N, H), 0.0);
+    float NdotH2 = NdotH*NdotH;
+    float nom   = a2;
+    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom = PI * denom * denom;
+	
+    return nom / denom;
+}
+
+float GeometrySchlickGGX(float NdotV, float roughness)
+{
+    float r = (roughness + 1.0);
+    float k = (r*r) / 8.0;
+    float nom   = NdotV;
+    float denom = NdotV * (1.0 - k) + k;
+	
+    return nom / denom;
+}
+
+float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
+{
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotL = max(dot(N, L), 0.0);
+    float ggx2  = GeometrySchlickGGX(NdotV, roughness);
+    float ggx1  = GeometrySchlickGGX(NdotL, roughness);
+	
+    return ggx1 * ggx2;
+}
+
+vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
+{
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
+}   
+
+vec3 render(vec3 P, vec3 N, vec3 NW, vec4 inColor, float ao)
+{
+	vec3 albedo = pow(inColor.rgb, vec3(2.2));
+	if (albedo == vec3(0)) albedo = vec3(1); // for no textures
+	vec3 V = normalize(-P);
+	
+	vec3 F0 = vec3(0.04);
+    F0 = mix(F0, albedo, metallic);
+	
+	// calculate per-light radiance
+	vec3 Lo = vec3(0.0);
+	vec3 L = normalize(LightPosition - P);
+	vec3 H = normalize(V + L);
+	float distance = length(LightPosition - P);
+	float attenuation = 1.0 / (distance * distance);
+	vec3 radiance = lightColor * attenuation;
+	
+	
+	// Cook-Torrance BRDF
+	float NDF = DistributionGGX(N, H, roughness);   
+	float G   = GeometrySmith(N, V, L, roughness);      
+	vec3 F    = fresnelSchlickRoughness(max(dot(H, V), 0.0), F0, roughness);
+	
+	vec3 specular = (NDF * G * F) / (4 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.001);
+	
+	// kS is equal to Fresnel
+	vec3 kS = F;
+	vec3 kD = vec3(1.0) - kS;
+	kD *= 1.0 - metallic;
+
+	// scale light by NdotL
+	float NdotL = max(dot(N, L), 0.0);        
+
+	// add to outgoing radiance Lo
+	Lo = (kD * albedo / PI + specular) * radiance * NdotL;
+	
+	vec3 irradiance = texture(irradianceMap, NW).rgb;
+	vec3 diffuse = irradiance * albedo;
+	vec3 ambient = (kD * diffuse) * ao;
+    
+    vec3 color = ambient + Lo;
+
+    // HDR tonemapping
+    color = color / (color + vec3(1.0));
+    // gamma correct
+    color = pow(color, vec3(1.0/2.2));
+	
+	if (inColor.a < 1.0 || P.rgb == vec3(0.2))
+	{
+		//if (inColor.a == vec3(0)) ao = 1;
+		color = vec3(ao);
+	}
+	
+	return vec3(color);
+}
+
 // Main
 
 void main()
 {
 	// Position and normal are view space
 	vec3 position = texture(gPosition, TexCoord).xyz;
-    vec3 normal = texture(gNormal, TexCoord).xyz;
+    vec3 normalWorld = texture(gNormal, TexCoord).xyz;
+	vec3 normal = mat3(view) * texture(gNormal, TexCoord).xyz;
     vec4 color = texture(gColor, TexCoord);
 	float depth = texture(gDepth, TexCoord).r;
 	
@@ -87,17 +192,50 @@ void main()
 	vec2 dsTexCoord = vec2(TexCoord.x, 1.0 - TexCoord.y);
 	vec4 dscolor = texture(dsColor, dsTexCoord);
 	float dsdepth = texture(dsDepth, dsTexCoord).r;
-	dsdepth /= 3000;
-		
 	
 	// Reconstructed position from depth (kinect)
 	//position = depthToViewPosition(depth, TexCoord);
 	vec3 dsposition = dsDepthToWorldPosition(dsDepth, dsTexCoord);
 	//dsposition = (view * vec4(dsposition, 1)).xyz;
 	
-	// Mix real and virtual scene
-	color.rgb = mix(dscolor, color, color.a).rgb;
-	position = mix(dsposition, position, color.a);
+	// Blend positions
+	if (color.a < 0.001) position = dsposition;
+	
+	// SSAO occlusion
+	vec2 noiseScale = vec2(screenWidth / 4, screenHeight / 4);
+	vec3 randomVec = texture(texNoise, TexCoord * noiseScale).xyz;
+	vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
+	vec3 bitangent = cross(normal, tangent);
+	mat3 TBN = mat3(tangent, bitangent, normal);
+	
+	// Transform samples from tangent to view space
+	float occlusion = 0.0;
+	for(int i = 0; i < kernelSize; ++i)
+	{
+		vec3 fsample = TBN * samples[i];
+		//vec3 fsample = samples[i];
+		fsample = position + fsample * kernelRadius;
+		
+		vec4 offset = vec4(fsample, 1.0);
+        offset = projection * offset; // from view to clip-space
+        offset.xyz /= offset.w; // perspective divide
+        offset.xyz = offset.xyz * 0.5 + 0.5; // transform to range 0.0 - 1.0
+		
+		float sampleDepth = texture(gPosition, offset.xy).z;
+		//float sampleDepthDS = dsDepthToWorldPosition(dsDepth, offset.xy).z;
+		//sampleDepth = mix(sampleDepthDS, sampleDepth, color.a);
+		float rangeCheck = smoothstep(0.0, 1.0, kernelRadius / abs(position.z - sampleDepth));
+		occlusion += (sampleDepth >= fsample.z + sampleBias ? 1.0 : 0.0) * rangeCheck;
+	}
+	occlusion = 1.0 - (occlusion / kernelSize);
+	
+	color.rgb = render(position, normal, normalWorld, color, occlusion);
+	
+	if (color.a < 0.001) color.rgb = dscolor.rgb;
+	if (color.a > 0.0 && color.a < 1.0) color.rgb = dscolor.rgb - (1 - color.rgb);
+	//if (position.rgb == vec3(0.2)) position = dsposition;
+	//position = mix(dsposition, position, color.a);
+	
 	
 	// Test
 	// draw a small disk at each position
@@ -120,33 +258,7 @@ void main()
 		}
 	}*/
 	
-	// SSAO occlusion
-	vec2 noiseScale = vec2(screenWidth / 4, screenHeight / 4);
-	vec3 randomVec = texture(texNoise, TexCoord * noiseScale).xyz;
-	vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
-	vec3 bitangent = cross(normal, tangent);
-	mat3 TBN = mat3(tangent, bitangent, normal);
 	
-	// Transform samples from tangent to view space
-	float occlusion = 0.0;
-	for(int i = 0; i < kernelSize; ++i)
-	{
-		//vec3 fsample = TBN * samples[i];
-		vec3 fsample = samples[i];
-		fsample = position + fsample * kernelRadius;
-		
-		vec4 offset = vec4(fsample, 1.0);
-        offset = projection * offset; // from view to clip-space
-        offset.xyz /= offset.w; // perspective divide
-        offset.xyz = offset.xyz * 0.5 + 0.5; // transform to range 0.0 - 1.0
-		
-		float sampleDepth = texture(gPosition, offset.xy).z;
-		float sampleDepthDS = dsDepthToWorldPosition(dsDepth, offset.xy).z;
-		sampleDepth = mix(sampleDepthDS, sampleDepth, color.a);
-		float rangeCheck = smoothstep(0.0, 1.0, kernelRadius / abs(position.z - sampleDepth));
-		occlusion += (sampleDepth >= fsample.z + sampleBias ? 1.0 : 0.0) * rangeCheck;
-	}
-	occlusion = 1.0 - (occlusion / kernelSize);
 	
 	switch (displayMode)
 	{

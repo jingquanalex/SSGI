@@ -93,6 +93,8 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 		int depthHeight = depthVideoMode.getResolutionY();
 		int colorWidth = colorVideoMode.getResolutionX();
 		int colorHeight = colorVideoMode.getResolutionY();
+		int minDepth = depthStream.getMinPixelValue();
+		int maxDepth = depthStream.getMaxPixelValue();
 
 		if (depthWidth == colorWidth && depthHeight == colorHeight)
 		{
@@ -143,7 +145,7 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 	texWidth = videoWidth;
 	texHeight = videoHeight;
 	texColorMap = new openni::RGB888Pixel[texWidth * texHeight];
-	texDepthMap = new unsigned short[texWidth * texHeight];
+	texDepthMap = new uint16_t[texWidth * texHeight];
 
 	device.setImageRegistrationMode(openni::IMAGE_REGISTRATION_DEPTH_TO_COLOR);
 
@@ -163,7 +165,7 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 
 	glGenTextures(1, &gltexDepthMap);
 	glBindTexture(GL_TEXTURE_2D, gltexDepthMap);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16UI, texWidth, texHeight, 0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, texWidth, texHeight, 0, GL_RED, GL_UNSIGNED_SHORT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -198,7 +200,7 @@ void DSensor::render()
 		printf("OpenNI Error: in wait\n");
 	}
 
-	// check if we need to draw image frame to texture
+	// Copy color data from kinect into color buffer
 	if (colorFrame.isValid())
 	{
 		const openni::RGB888Pixel* imageBuffer = (const openni::RGB888Pixel*)colorFrame.getData();
@@ -207,21 +209,21 @@ void DSensor::render()
 		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RGB, GL_UNSIGNED_BYTE, texColorMap);
 	}
 
-	if (depthFrame.isValid())
+	/*if (depthFrame.isValid())
 	{
 		const uint16_t *depthPixels = (const uint16_t*)depthFrame.getData();
 		memcpy(texDepthMap, depthPixels, depthFrame.getWidth() * depthFrame.getHeight() * sizeof(uint16_t));
 		glBindTexture(GL_TEXTURE_2D, gltexDepthMap);
 		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RED_INTEGER, GL_UNSIGNED_SHORT, texDepthMap);
-	}
+	}*/
 
-	// check if we need to draw depth frame to texture
-	/*if (depthFrame.isValid())
+	// Map 11bit depth to 16 bit and copy into 16bit depth buffer
+	if (depthFrame.isValid())
 	{
-		memset(texDepthMap, 0, texWidth * texHeight * sizeof(openni::RGB888Pixel));
+		memset(texDepthMap, 0, texWidth * texHeight * sizeof(uint16_t));
 
 		const openni::DepthPixel* pDepthRow = (const openni::DepthPixel*)depthFrame.getData();
-		openni::RGB888Pixel* pTexRow = texDepthMap + depthFrame.getCropOriginY() * texWidth;
+		uint16_t* pTexRow = texDepthMap + depthFrame.getCropOriginY() * texWidth;
 		int rowSize = depthFrame.getStrideInBytes() / sizeof(openni::DepthPixel);
 
 		float depthHist[maxDepth];
@@ -230,16 +232,14 @@ void DSensor::render()
 		for (int y = 0; y < depthFrame.getHeight(); ++y)
 		{
 			const openni::DepthPixel* pDepth = pDepthRow;
-			openni::RGB888Pixel* pTex = pTexRow + depthFrame.getCropOriginX();
+			uint16_t* pTex = pTexRow + depthFrame.getCropOriginX();
 
 			for (int x = 0; x < depthFrame.getWidth(); ++x, ++pDepth, ++pTex)
 			{
 				if (*pDepth != 0)
 				{
 					int nHistValue = (int)depthHist[*pDepth];
-					pTex->r = nHistValue;
-					pTex->g = nHistValue;
-					pTex->b = nHistValue;
+					*pTex = nHistValue;
 				}
 			}
 
@@ -247,12 +247,9 @@ void DSensor::render()
 			pTexRow += texWidth;
 		}
 
-		//openni::DepthPixel *depthPixels = new openni::DepthPixel[depthFrame.getHeight()*depthFrame.getWidth()];
-		//memcpy(depthPixels, depthFrame.getData(), depthFrame.getHeight()*depthFrame.getWidth() * sizeof(uint16_t));
-
 		glBindTexture(GL_TEXTURE_2D, gltexDepthMap);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RGB, GL_UNSIGNED_BYTE, texDepthMap);
-	}*/
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RED, GL_UNSIGNED_SHORT, texDepthMap);
+	}
 }
 
 GLuint DSensor::getColorMapId() const
@@ -290,10 +287,10 @@ GLuint DSensor::minChunkSize(GLuint dataSize, GLuint chunkSize)
 	return minNumChunks(dataSize, chunkSize) * chunkSize;
 }
 
+// Fit kinect 11bit depth to 16bit buffer
 void DSensor::calculateHistogram(float* pHistogram, int histogramSize, const openni::VideoFrameRef& frame)
 {
 	const openni::DepthPixel* pDepth = (const openni::DepthPixel*)frame.getData();
-	// Calculate the accumulative histogram (the yellow display...)
 	memset(pHistogram, 0, histogramSize * sizeof(float));
 	int restOfRow = frame.getStrideInBytes() / sizeof(openni::DepthPixel) - frame.getWidth();
 	int height = frame.getHeight();
@@ -320,7 +317,7 @@ void DSensor::calculateHistogram(float* pHistogram, int histogramSize, const ope
 	{
 		for (int nIndex = 1; nIndex<histogramSize; nIndex++)
 		{
-			pHistogram[nIndex] = (256 * (1.0f - (pHistogram[nIndex] / nNumberOfPoints)));
+			pHistogram[nIndex] = (65536 * (1.0f - (pHistogram[nIndex] / nNumberOfPoints)));
 		}
 	}
 }

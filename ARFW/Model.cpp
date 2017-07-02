@@ -22,6 +22,14 @@ void Model::draw(GLuint program)
 	}
 }
 
+void Model::drawMeshOnly()
+{
+	for (Mesh& mesh : meshes)
+	{
+		mesh.drawMeshOnly();
+	}
+}
+
 void Model::loadModel(string path)
 {
 	Importer import;
@@ -109,8 +117,8 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
 		vector<Texture> normalMaps = loadMaterialTextures(material, aiTextureType_NORMALS, "normal");
 		textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
 
-		vector<Texture> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, "specular");
-		textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
+		//vector<Texture> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, "specular");
+		//textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
 	}
 
 	return Mesh(vertices, indices, textures);

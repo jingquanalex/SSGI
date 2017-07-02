@@ -24,14 +24,16 @@ private:
 	Shader* gPassShader = nullptr;
 	Shader* lightingPassShader = nullptr;
 	SSAO* ssao = nullptr;
-	float ssaoKernelRadius = 10.35f;
-	float ssaoSampleBias = 0.1f;
+	float ssaoKernelRadius = 1.35f;
+	float ssaoSampleBias = 0.0f;
 	int bufferWidth, bufferHeight;
 
 	Camera* camera = nullptr;
 	Quad* quad = nullptr;
 	Object* sponza = nullptr;
-	GLuint tex;
+	Object* plane;
+	Object* cube;
+	GLuint texMask;
 
 	GLuint uniform_CamMat;
 	int renderMode = 1;
@@ -41,6 +43,15 @@ private:
 	nanogui::ref<nanogui::Window> nanoguiWindow = nullptr;
 
 	DSensor* sensor = nullptr;
+
+	glm::vec3 lightPosition = glm::vec3(0.0f, 2.0f, 2.0f);
+	nanogui::Color lightColor = nanogui::Color(0.65f, 0.1f, 0.3f, 1.0f);
+	float roughness = 0.24f;
+	float metallic = 0.1f;
+
+	GLuint environmentMap;
+	GLuint irradianceMap;
+	Shader* hdrToCubemapShader;
 
 	void recompileShaders();
 	void initializeShaders();

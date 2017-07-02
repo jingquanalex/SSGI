@@ -47,6 +47,7 @@ public:
 	~Model();
 
 	void draw(GLuint program);
+	void drawMeshOnly();
 
 	BoundingBox getBoundingBox() const;
 

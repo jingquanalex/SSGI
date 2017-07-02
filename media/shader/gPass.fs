@@ -1,8 +1,8 @@
 #version 450
 
 in vec3 Position;
-in vec3 Normal;
 in vec2 TexCoord;
+in vec3 Normal;
 
 layout (location = 0) out vec3 gPosition;
 layout (location = 1) out vec3 gNormal;
