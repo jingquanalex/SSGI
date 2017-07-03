@@ -8,6 +8,7 @@
 #include "Quad.h"
 #include "SSAO.h"
 #include "DSensor.h"
+#include "PBR.h"
 
 #include <chrono>
 #include <thread>
@@ -32,7 +33,6 @@ private:
 	Quad* quad = nullptr;
 	Object* sponza = nullptr;
 	Object* plane;
-	Object* cube;
 	GLuint texMask;
 
 	GLuint uniform_CamMat;
@@ -44,14 +44,16 @@ private:
 
 	DSensor* sensor = nullptr;
 
-	glm::vec3 lightPosition = glm::vec3(0.0f, 2.0f, 2.0f);
-	nanogui::Color lightColor = nanogui::Color(0.65f, 0.1f, 0.3f, 1.0f);
+	glm::vec3 lightPosition = glm::vec3(0.0f, 1.5f, 0.0f);
+	nanogui::Color lightColor = nanogui::Color(1.00f, 0.48f, 0.49f, 1.0f);
 	float roughness = 0.24f;
 	float metallic = 0.1f;
 
+	PBR* pbr;
 	GLuint environmentMap;
 	GLuint irradianceMap;
-	Shader* hdrToCubemapShader;
+	GLuint prefilterMap;
+	GLuint brdfLUT;
 
 	void recompileShaders();
 	void initializeShaders();

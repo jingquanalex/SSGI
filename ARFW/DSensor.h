@@ -32,7 +32,7 @@ public:
 	~DSensor();
 
 	void initialize(int windowWidth, int windowHeight);
-	void render();
+	void update();
 
 	GLuint getColorMapId() const;
 	GLuint getDepthMapId() const;

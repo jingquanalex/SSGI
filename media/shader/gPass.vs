@@ -23,11 +23,10 @@ uniform mat4 modelInverse;
 
 void main()
 {
-	// View space position, world space normals
 	vec4 viewPos = view * model * vec4(position, 1.0);
 	Position = viewPos.xyz;
-	//Normal = mat3(transpose(inverse(view * model))) * normal;
-	Normal = mat3(transpose(modelInverse)) * normal;
+	Normal = mat3(transpose(inverse(view * model))) * normal;
+	//Normal = mat3(transpose(modelInverse)) * normal;
 	TexCoord = texcoord;
 	gl_Position = projection * viewPos;
 }

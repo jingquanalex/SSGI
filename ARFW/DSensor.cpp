@@ -172,7 +172,7 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 
-void DSensor::render()
+void DSensor::update()
 {
 	if (!initOk || !isRendering) return;
 
