@@ -55,6 +55,12 @@ private:
 	GLuint prefilterMap;
 	GLuint brdfLUT;
 
+	Shader* compositeShader;
+	GLuint captureFBO;
+	GLuint captureRBO;
+	GLuint cFullScene;
+	GLuint cPlaneScene;
+
 	void recompileShaders();
 	void initializeShaders();
 

@@ -1,7 +1,6 @@
 #version 450
 
 in vec2 TexCoord;
-in vec3 LightPosition;
 
 out vec4 outColor;
 
@@ -210,11 +209,11 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, float ao)
     color = pow(color, vec3(1.0/2.2));
 	
 	// Mix shade on kinect outputs
-	if (inColor.a < 1.0 || P.rgb == vec3(0.2))
+	/*if (inColor.a < 1.0 || P.rgb == vec3(0.2))
 	{
 		//if (inColor.a == vec3(0)) ao = 1;
 		color = vec3(ao);
-	}
+	}*/
 	
 	return vec3(color);
 }
@@ -240,8 +239,8 @@ void main()
 	vec3 dsposition = dsDepthToWorldPosition(dsDepth, dsTexCoord);
 	//dsposition = (view * vec4(dsposition, 1)).xyz;
 	
-	// Blend positions
-	if (color.a < 0.001) position = dsposition;
+	// Blend in kinect positions
+	//if (color.a < 0.001) position = dsposition;
 	
 	// SSAO occlusion
 	vec2 noiseScale = vec2(screenWidth / 4, screenHeight / 4);
@@ -273,8 +272,9 @@ void main()
 	
 	color.rgb = render(positionWorld, normalWorld, color, occlusion);
 	
-	if (color.a < 0.001) color.rgb = dscolor.rgb;
-	if (color.a > 0.0 && color.a < 1.0) color.rgb = dscolor.rgb - (1 - color.rgb);
+	// Blend in kinect colors and positions
+	/*if (color.a < 0.001) color.rgb = dscolor.rgb;
+	if (color.a > 0.0 && color.a < 1.0) color.rgb = dscolor.rgb - (1 - color.rgb);*/
 	//if (position.rgb == vec3(0.2)) position = dsposition;
 	//position = mix(dsposition, position, color.a);
 	
