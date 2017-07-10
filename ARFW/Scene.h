@@ -9,6 +9,7 @@
 #include "SSAO.h"
 #include "DSensor.h"
 #include "PBR.h"
+#include "PointCloud.h"
 
 #include <chrono>
 #include <thread>
@@ -21,15 +22,18 @@ private:
 	bool initSuccess = false;
 	double currentTime, previousTime = 0.0;
 
-	GLuint gBuffer, gPosition, gNormal, gColor, gDepth;
+	GLuint gBuffer, gBlendBuffer;
+	GLuint gPosition, gNormal, gColor, gDepth;
+	GLuint gBlendPosition, gBlendNormal, gBlendColor, gBlendDepth;
 	Shader* gPassShader = nullptr;
 	Shader* lightingPassShader = nullptr;
+	Shader* gBlendPassShader = nullptr;
 	SSAO* ssao = nullptr;
 	float ssaoKernelRadius = 1.35f;
 	float ssaoSampleBias = 0.0f;
 	int bufferWidth, bufferHeight;
 
-	Camera* camera = nullptr;
+	CameraFPS* camera = nullptr;
 	Quad* quad = nullptr;
 	Object* sponza = nullptr;
 	Object* plane;
@@ -60,6 +64,8 @@ private:
 	GLuint captureRBO;
 	GLuint cFullScene;
 	GLuint cPlaneScene;
+
+	PointCloud* pointCloud;
 
 	void recompileShaders();
 	void initializeShaders();

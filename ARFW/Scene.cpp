@@ -25,13 +25,27 @@ Scene::~Scene()
 void Scene::recompileShaders()
 {
 	gPassShader->recompile();
+	gBlendPassShader->recompile();
 	lightingPassShader->recompile();
 	compositeShader->recompile();
+	pointCloud->recompileShader();
 	initializeShaders();
 }
 
 void Scene::initializeShaders()
 {
+	gPassShader->apply();
+	glUniform1i(glGetUniformLocation(gPassShader->getShaderId(), "diffuse1"), 0);
+	glUniform1i(glGetUniformLocation(gPassShader->getShaderId(), "normal1"), 1);
+	glUniform1i(glGetUniformLocation(gPassShader->getShaderId(), "specular1"), 2);
+
+	gBlendPassShader->apply();
+	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "gInPosition"), 0);
+	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "gInNormal"), 1);
+	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "gInColor"), 2);
+	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "dsColor"), 3);
+	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "dsDepth"), 4);
+
 	lightingPassShader->apply();
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gPosition"), 0);
@@ -59,21 +73,26 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	bufferHeight = g_windowHeight;
 	camera = new CameraFPS(g_windowWidth, g_windowHeight);
 	camera->setActive(true);
+	camera->setPosition(vec3(0, 0, 0));
+	camera->setDirection(vec3(0, 0, -1));
 	gPassShader = new Shader("gPass");
 	if (gPassShader->hasError()) return;
 	lightingPassShader = new Shader("lightingPass");
 	if (lightingPassShader->hasError()) return;
+	gBlendPassShader = new Shader("gBlendPass");
 
 	quad = new Quad();
 	plane = new Object();
 	plane->setGPassShaderId(gPassShader->getShaderId());
-	plane->setPosition(vec3(0.0f, -1.0f, 0.0f));
-	plane->setScale(vec3(10.0f, 0.1f, 10.0f));
+	plane->setPosition(vec3(0.0f, -0.75f, -4.0f));
+	plane->setScale(vec3(1.0f, 0.1f, 1.0f));
 	plane->load("cube/cube.obj");
 	sponza = new Object();
 	sponza->setGPassShaderId(gPassShader->getShaderId());
 	//sponza->setScale(vec3(0.05f));
 	sponza->setScale(vec3(2.5f));
+	sponza->setPosition(vec3(0, 0, -4));
+	sponza->setRotation(vec3(0, 90, 0));
 	sponza->load("dragon.obj");
 	//sponza->load("sibenik/sibenik.obj");
 	//sponza->load("sponza/sponza.obj");
@@ -82,6 +101,8 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	// Initialize depth sensor
 	sensor = new DSensor();
 	sensor->initialize(g_windowWidth, g_windowHeight);
+
+	pointCloud = new PointCloud(sensor->getColorMapId(), sensor->getDepthMapId());
 
 	// Initialize GUI
 	this->guiScreen = guiScreen;
@@ -92,6 +113,14 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	gui->addButton("Recompile", [&]()
 	{
 		recompileShaders();
+	});
+
+	gui->addGroup("Camera");
+	gui->addButton("Reset Orientation", [&]()
+	{
+		camera->setPosition(vec3(0, 0, 0));
+		//camera->setDirection(vec3(0, 0, -1));
+		camera->setTargetPoint(camera->getPosition() + vec3(0, 0, -1));
 	});
 
 	gui->addGroup("Light");
@@ -169,6 +198,39 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gDepth, 0);
 
 	const GLuint attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+	glDrawBuffers(3, attachments);
+
+	// Create buffers for gBlend pass TODO: optimize texture array and glTextureBarrier
+	glGenFramebuffers(1, &gBlendBuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, gBlendBuffer);
+
+	glGenTextures(1, &gBlendPosition);
+	glBindTexture(GL_TEXTURE_2D, gBlendPosition);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gBlendPosition, 0);
+
+	glGenTextures(1, &gBlendNormal);
+	glBindTexture(GL_TEXTURE_2D, gBlendNormal);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gBlendNormal, 0);
+
+	glGenTextures(1, &gBlendColor);
+	glBindTexture(GL_TEXTURE_2D, gBlendColor);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gBlendColor, 0);
+
 	glDrawBuffers(3, attachments);
 
 	// Capture final outputs for differential rendering
@@ -262,15 +324,39 @@ void Scene::render()
 	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
 	glViewport(0, 0, bufferWidth, bufferHeight);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	//pointCloud->draw();
 	
 	gPassShader->apply();
-	sponza->draw();
+
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texMask);
+
+	sponza->draw();
 	plane->drawMeshOnly();
 
-	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cFullScene, 0);
+	// Blend G-Buffer and kinect buffers
+	glBindFramebuffer(GL_FRAMEBUFFER, gBlendBuffer);
+	glViewport(0, 0, bufferWidth, bufferHeight);
+	glClear(GL_COLOR_BUFFER_BIT);
+	gBlendPassShader->apply();
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, gPosition);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, gNormal);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, gColor);
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, sensor->getColorMapId());
+	glActiveTexture(GL_TEXTURE4);
+	glBindTexture(GL_TEXTURE_2D, sensor->getDepthMapId());
+
+	quad->draw();
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	//glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+	//glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cFullScene, 0);
 
 	// Lighting pass
 	glViewport(0, 0, g_windowWidth, g_windowHeight);
@@ -279,11 +365,11 @@ void Scene::render()
 	lightingPassShader->apply();
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gPosition);
+	glBindTexture(GL_TEXTURE_2D, gBlendPosition);
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, gNormal);
+	glBindTexture(GL_TEXTURE_2D, gBlendNormal);
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, gColor);
+	glBindTexture(GL_TEXTURE_2D, gBlendColor);
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D, gDepth);
 	glActiveTexture(GL_TEXTURE4);
@@ -305,7 +391,7 @@ void Scene::render()
 
 	// 2nd render planescene
 	// G-Buffer pass
-	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+	/*glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
 	glViewport(0, 0, bufferWidth, bufferHeight);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -363,7 +449,7 @@ void Scene::render()
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, sensor->getColorMapId());
 
-	quad->draw();
+	quad->draw();*/
 
 	// Draw GUI
 	guiScreen->drawWidgets();
@@ -383,39 +469,9 @@ void Scene::keyCallback(int key, int action)
 	}
 
 	// Shader modes
-	if (key == GLFW_KEY_1 && action == GLFW_PRESS)
+	if (key >= GLFW_KEY_1 && key <= GLFW_KEY_9 && action == GLFW_PRESS)
 	{
-		renderMode = 1;
-		lightingPassShader->apply();
-		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
-	}
-	else if (key == GLFW_KEY_2 && action == GLFW_PRESS)
-	{
-		renderMode = 2;
-		lightingPassShader->apply();
-		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
-	}
-	else if (key == GLFW_KEY_3 && action == GLFW_PRESS)
-	{
-		renderMode = 3;
-		lightingPassShader->apply();
-		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
-	}
-	else if (key == GLFW_KEY_4 && action == GLFW_PRESS)
-	{
-		renderMode = 4;
-		lightingPassShader->apply();
-		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
-	}
-	else if (key == GLFW_KEY_5 && action == GLFW_PRESS)
-	{
-		renderMode = 5;
-		lightingPassShader->apply();
-		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
-	}
-	else if (key == GLFW_KEY_6 && action == GLFW_PRESS)
-	{
-		renderMode = 6;
+		renderMode = key - 48;
 		lightingPassShader->apply();
 		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
 	}

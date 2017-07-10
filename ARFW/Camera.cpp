@@ -85,7 +85,15 @@ void Camera::mouseCallback(int button, int action)
 
 void Camera::setPosition(glm::vec3 position)
 {
-	this->position = vec3(position.x, position.y, position.z);
+	this->position = position;
+	updateViewMatrix();
+}
+
+void Camera::setDirection(glm::vec3 direction)
+{
+	this->direction = direction;
+	mouseDeltaX = mouseDeltaY = 0;
+	mouseLastX = mouseLastY = 0;
 	updateViewMatrix();
 }
 

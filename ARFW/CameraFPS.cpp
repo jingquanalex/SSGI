@@ -119,7 +119,8 @@ void CameraFPS::setTargetPoint(vec3 position)
 	this->targetPoint = position;
 	direction = normalize(this->targetPoint - this->position);
 	// TODO: wrong angles
-	yaw = degrees(atan2(direction.x, direction.y));
-	pitch = degrees(asin(direction.z));
+	pitch = degrees(atan2(direction.x, direction.y));
+	yaw = degrees(asin(direction.z));
+	//cout << "yaw: " << yaw << " pitch: " << pitch << endl;
 	updateViewMatrix();
 }

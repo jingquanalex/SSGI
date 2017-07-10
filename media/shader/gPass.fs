@@ -12,10 +12,13 @@ uniform sampler2D diffuse1;
 uniform sampler2D normal1;
 uniform sampler2D specular1;
 
+
 void main()
 {
-	gPosition = Position;
+	vec3 position = Position;
+	vec4 color = texture(diffuse1, TexCoord);
+	
+	gPosition = position;
 	gNormal = normalize(Normal);
-	gColor = texture(diffuse1, TexCoord);
-	//gColor.a = texture(specular1, TexCoord).a;
+	gColor = color;
 }

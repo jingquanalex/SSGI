@@ -41,6 +41,7 @@ public:
 	// === Accessors ===
 
 	void setPosition(glm::vec3 position);
+	void setDirection(glm::vec3 direction);
 	void setResolution(int width, int height);
 	void setMaxSpeed(float maxspeed);
 	void setAcceleration(float acceleration);

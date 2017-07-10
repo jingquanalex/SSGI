@@ -178,6 +178,7 @@ xcopy /Y /D /I /E "$(SolutionDir)OpenNI2" "$(OutDir)"</Command>
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="PBR.cpp" />
+    <ClCompile Include="PointCloud.cpp" />
     <ClCompile Include="Quad.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Shader.cpp" />
@@ -194,6 +195,7 @@ xcopy /Y /D /I /E "$(SolutionDir)OpenNI2" "$(OutDir)"</Command>
     <ClInclude Include="Model.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="PBR.h" />
+    <ClInclude Include="PointCloud.h" />
     <ClInclude Include="Quad.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Shader.h" />

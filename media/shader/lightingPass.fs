@@ -57,14 +57,17 @@ vec3 depthToViewPosition(float depth, vec2 texcoord)
     return (viewPosition / viewPosition.w).xyz;
 }
 
+const float cx = 640 / 2;
+const float cy = 480 / 2;
 const float fx = tan(radians(61.9999962) / 2) * 2;
 const float fy = tan(radians(48.5999985) / 2) * 2;
 
 vec3 dsDepthToWorldPosition(sampler2D samplerDepth, vec2 texcoord)
 {
-	float z = texture(samplerDepth, texcoord).r;
-	float x = (texcoord.x - 0.5) * z * fx;
-	float y = (0.5 - texcoord.y) * z * fy;
+	float z = texture(samplerDepth, texcoord).r * 5;
+	float x = (texcoord.x * 640 - cx) * z * fx / 440;
+	float y = (cy - texcoord.y * 480) * z * fy / 440;
+	z -= 7;
 	return vec3(x, y, z);
 }
 
@@ -229,18 +232,19 @@ void main()
 	vec3 normalWorld = mat3(viewInverse) * normal;
     vec4 color = texture(gColor, TexCoord);
 	
+	// Reconstruct position from depth buffer
+	//position = depthToViewPosition(depth, TexCoord);
+	
 	// Depth sensor textures
 	vec2 dsTexCoord = vec2(TexCoord.x, 1.0 - TexCoord.y);
 	vec4 dscolor = texture(dsColor, dsTexCoord);
 	float dsdepth = texture(dsDepth, dsTexCoord).r;
 	
 	// Reconstructed position from depth (kinect)
-	//position = depthToViewPosition(depth, TexCoord);
 	vec3 dsposition = dsDepthToWorldPosition(dsDepth, dsTexCoord);
-	//dsposition = (view * vec4(dsposition, 1)).xyz;
 	
-	// Blend in kinect positions
-	//if (color.a < 0.001) position = dsposition;
+	
+	
 	
 	// SSAO occlusion
 	vec2 noiseScale = vec2(screenWidth / 4, screenHeight / 4);
@@ -253,8 +257,8 @@ void main()
 	float occlusion = 0.0;
 	for(int i = 0; i < kernelSize; ++i)
 	{
-		vec3 fsample = TBN * samples[i];
-		//vec3 fsample = samples[i];
+		//vec3 fsample = TBN * samples[i];
+		vec3 fsample = samples[i];
 		fsample = position + fsample * kernelRadius;
 		
 		vec4 offset = vec4(fsample, 1.0);
@@ -270,42 +274,15 @@ void main()
 	}
 	occlusion = 1.0 - (occlusion / kernelSize);
 	
-	color.rgb = render(positionWorld, normalWorld, color, occlusion);
-	
-	// Blend in kinect colors and positions
-	/*if (color.a < 0.001) color.rgb = dscolor.rgb;
-	if (color.a > 0.0 && color.a < 1.0) color.rgb = dscolor.rgb - (1 - color.rgb);*/
-	//if (position.rgb == vec3(0.2)) position = dsposition;
-	//position = mix(dsposition, position, color.a);
-	
-	
-	// Test
-	// draw a small disk at each position
-	/*const int samps = 40;
-	for (int i = 0; i < samps; i++)
-	{
-		for (int j = 0; j < samps; j++)
-		{
-			vec2 sampleCoord = vec2(i, j) / samps;
-			vec4 circlePos = vec4(sampleCoord * 10, texture(dsDepth, vec2(sampleCoord.x, 1.0 - sampleCoord.y)).r * 10, 1);
-			circlePos = projection * view * circlePos;
-			circlePos.xyz = circlePos.xyz / circlePos.w;
-			circlePos.xy = (circlePos.xy + 1) * 0.5;
-			
-			if (circlePos.w > 0) // draw circle if in front of camera
-			{
-				vec4 layer2 = circle(circlePos.xy, 0.01, texture(dsColor, vec2(sampleCoord.x, 1.0 - sampleCoord.y)).rgb);
-				color = mix(color, layer2, layer2.a);
-			}
-		}
-	}*/
+	vec4 finalColor = vec4(0, 0, 0, 1);
+	finalColor.rgb = render(positionWorld, normalWorld, color, occlusion);
 	
 	
 	
 	switch (displayMode)
 	{
 		case 1:
-			outColor = color;
+			outColor = finalColor;
 			break;
 		
 		case 2:
@@ -313,19 +290,27 @@ void main()
 			break;
 			
 		case 3:
-			outColor = vec4(occlusion);
+			outColor = vec4(normal, 1);
 			break;
 			
 		case 4:
-			outColor = dscolor;
+			outColor = vec4(vec3(occlusion), 1);
 			break;
 			
 		case 5:
-			outColor = vec4(dsdepth);
+			outColor = color;
 			break;
 			
 		case 6:
-			outColor = dscolor * occlusion;
+			outColor = dscolor;
+			break;
+			
+		case 7:
+			outColor = vec4(dsdepth);
+			break;
+			
+		case 8:
+			outColor = vec4(dsposition, 1);
 			break;
 	}
 }
