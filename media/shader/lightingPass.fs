@@ -298,7 +298,7 @@ void main()
 			break;
 			
 		case 5:
-			outColor = color;
+			outColor = vec4(color.a);
 			break;
 			
 		case 6:

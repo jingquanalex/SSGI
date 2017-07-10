@@ -26,6 +26,7 @@ void Scene::recompileShaders()
 {
 	gPassShader->recompile();
 	gBlendPassShader->recompile();
+	gMedianPassShader->recompile();
 	lightingPassShader->recompile();
 	compositeShader->recompile();
 	pointCloud->recompileShader();
@@ -45,6 +46,11 @@ void Scene::initializeShaders()
 	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "gInColor"), 2);
 	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "dsColor"), 3);
 	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "dsDepth"), 4);
+
+	gMedianPassShader->apply();
+	glUniform1i(glGetUniformLocation(gMedianPassShader->getShaderId(), "gInPosition"), 0);
+	glUniform1i(glGetUniformLocation(gMedianPassShader->getShaderId(), "gInNormal"), 1);
+	glUniform1i(glGetUniformLocation(gMedianPassShader->getShaderId(), "gInColor"), 2);
 
 	lightingPassShader->apply();
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
@@ -80,6 +86,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	lightingPassShader = new Shader("lightingPass");
 	if (lightingPassShader->hasError()) return;
 	gBlendPassShader = new Shader("gBlendPass");
+	gMedianPassShader = new Shader("gMedianPass");
 
 	quad = new Quad();
 	plane = new Object();
@@ -339,6 +346,7 @@ void Scene::render()
 	glBindFramebuffer(GL_FRAMEBUFFER, gBlendBuffer);
 	glViewport(0, 0, bufferWidth, bufferHeight);
 	glClear(GL_COLOR_BUFFER_BIT);
+
 	gBlendPassShader->apply();
 
 	glActiveTexture(GL_TEXTURE0);
@@ -354,6 +362,22 @@ void Scene::render()
 
 	quad->draw();
 
+	// Median filter pass
+	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+	glViewport(0, 0, bufferWidth, bufferHeight);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	gMedianPassShader->apply();
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, gBlendPosition);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, gBlendNormal);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, gBlendColor);
+
+	quad->draw();
+
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	//glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
 	//glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cFullScene, 0);
@@ -365,11 +389,11 @@ void Scene::render()
 	lightingPassShader->apply();
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gBlendPosition);
+	glBindTexture(GL_TEXTURE_2D, gPosition);
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, gBlendNormal);
+	glBindTexture(GL_TEXTURE_2D, gNormal);
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, gBlendColor);
+	glBindTexture(GL_TEXTURE_2D, gColor);
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D, gDepth);
 	glActiveTexture(GL_TEXTURE4);

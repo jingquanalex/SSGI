@@ -13,7 +13,7 @@ uniform sampler2D dsColor;
 uniform sampler2D dsDepth;
 
 // MEDIAN FILTER //
-// adapted: https://github.com/ryocchin/QtShaderExample/blob/master/shaders/median3.frag
+// https://github.com/ryocchin/QtShaderExample/blob/master/shaders/median3.frag
 
 #define small2(a,b) tmp=a; a=min(a,b); b=max(tmp,b);
 #define small3(a,b,c) small2(a,b); small2(a,c);
@@ -119,17 +119,18 @@ void main()
 	
 	vec3 mixPosition = dsposition;
 	vec4 mixColor = dscolor;
+	mixColor.a = color.a;
 	
 	if (mixPosition.z < position.z)
 	{
 		mixPosition = position;
-		mixColor = color;
+		mixColor.rgb = color.rgb;
 	}
 	
-	if (color.w == 0)
+	if (color.a == 0)
 	{
 		mixPosition = dsposition;
-		mixColor = dscolor;
+		mixColor.rgb = dscolor.rgb;
 	}
 	
 	color = mixColor;
