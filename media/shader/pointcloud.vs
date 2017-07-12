@@ -19,23 +19,24 @@ out vec4 gsPosition;
 out vec4 gsPositionWorld;
 out vec4 gsColor;
 
-const float cx = 640 / 2;
-const float cy = 480 / 2;
+const float imgWidth = 640;
+const float imgHeight = 480;
 const float fx = tan(radians(61.9999962) / 2) * 2;
 const float fy = tan(radians(48.5999985) / 2) * 2;
 
 vec3 dsDepthToWorldPosition(sampler2D samplerDepth, ivec2 texcoord)
 {
-	float z = texelFetch(samplerDepth, texcoord, 0).r * 5;
-	float x = (texcoord.x - cx) * z * fx / 440;
-	float y = (cy - texcoord.y) * z * fy / 440;
-	z -= 7;
+	float normalizedX = texcoord.x / imgWidth - 0.5;
+	float normalizedY = 0.5 - texcoord.y / imgHeight;
+	float z = texelFetch(samplerDepth, texcoord, 0).r;
+	float x = normalizedX * z * fx;
+	float y = normalizedY * z * fy;
 	return vec3(x, y, z);
 }
 
 void main()
 {
-	ivec2 filpTexelCoord = ivec2(texelCoord.x, 480 - texelCoord.y);
+	ivec2 filpTexelCoord = ivec2(texelCoord.x, imgHeight - texelCoord.y);
 	//gsPositionWorld = vec4(texelCoord, texelFetch(dsDepth, filpTexelCoord, 0).r, 1);
 	vec3 dsPos = dsDepthToWorldPosition(dsDepth, filpTexelCoord);
 	gsPositionWorld = vec4(dsPos, 1);

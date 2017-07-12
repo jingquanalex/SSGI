@@ -13,7 +13,7 @@ layout (std140, binding = 9) uniform MatCam
 	mat4 kinectProjectionInverse;
 };
 
-uniform float radius = 0.005;
+uniform float radius = 0.001;
 
 in vec4 gsPosition[];
 in vec4 gsPositionWorld[];

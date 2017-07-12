@@ -29,5 +29,6 @@ public:
 	void mouseCallback(int button, int action);
 
 	void setTargetPoint(glm::vec3 position);
+	void setMoveSpeed(float speed);
 
 };

@@ -79,6 +79,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	bufferHeight = g_windowHeight;
 	camera = new CameraFPS(g_windowWidth, g_windowHeight);
 	camera->setActive(true);
+	camera->setMoveSpeed(4);
 	camera->setPosition(vec3(0, 0, 0));
 	camera->setDirection(vec3(0, 0, -1));
 	gPassShader = new Shader("gPass");
@@ -97,8 +98,8 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	sponza = new Object();
 	sponza->setGPassShaderId(gPassShader->getShaderId());
 	//sponza->setScale(vec3(0.05f));
-	sponza->setScale(vec3(2.5f));
-	sponza->setPosition(vec3(0, 0, -4));
+	sponza->setScale(vec3(0.5f));
+	//sponza->setPosition(vec3(0, 0, -4));
 	sponza->setRotation(vec3(0, 90, 0));
 	sponza->load("dragon.obj");
 	//sponza->load("sibenik/sibenik.obj");
@@ -332,15 +333,15 @@ void Scene::render()
 	glViewport(0, 0, bufferWidth, bufferHeight);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	//pointCloud->draw();
+	pointCloud->draw();
 	
 	gPassShader->apply();
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texMask);
 
-	sponza->draw();
-	plane->drawMeshOnly();
+	//sponza->draw();
+	//plane->drawMeshOnly();
 
 	// Blend G-Buffer and kinect buffers
 	glBindFramebuffer(GL_FRAMEBUFFER, gBlendBuffer);

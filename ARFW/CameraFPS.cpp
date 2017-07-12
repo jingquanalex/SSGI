@@ -124,3 +124,8 @@ void CameraFPS::setTargetPoint(vec3 position)
 	//cout << "yaw: " << yaw << " pitch: " << pitch << endl;
 	updateViewMatrix();
 }
+
+void CameraFPS::setMoveSpeed(float speed)
+{
+	moveSpeed = speed;
+}
