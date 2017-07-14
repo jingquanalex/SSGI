@@ -19,12 +19,12 @@ const float fy = tan(radians(48.5999985) / 2) * 2;
 
 vec3 dsDepthToWorldPosition(sampler2D samplerDepth, vec2 texcoord)
 {
-	float normalizedX = texcoord.x - 0.5;
-	float normalizedY = texcoord.y - 0.5;
-	float z = texture(samplerDepth, texcoord).r;
+	float normalizedX = 0.5 - texcoord.x;
+	float normalizedY = 0.5 - texcoord.y;
+	float z = texture(samplerDepth, texcoord).r - 1;
 	float x = normalizedX * z * fx;
 	float y = normalizedY * z * fy;
-	z = z - 1;
+	
 	return vec3(x, y, z);
 }
 
@@ -34,22 +34,19 @@ void main()
     vec3 normal = texture(gInNormal, TexCoord).xyz;
     vec4 color = texture(gInColor, TexCoord);
 	
-	// Depth sensor textures
+	// Depth sensor outputs
 	vec4 dscolor = texture(dsColor, TexCoord);
 	float dsdepth = texture(dsDepth, TexCoord).r;
-	
-	// Reconstructed position from depth (kinect)
 	vec3 dsposition = dsDepthToWorldPosition(dsDepth, TexCoord);
 	
+	// Mix gBuffer and kinect position and color
+	vec3 mixPosition = dsposition;
+	vec4 mixColor = dscolor;
 	
-	vec3 mixPosition = position;
-	vec4 mixColor = color;
-	//mixColor.a = color.a;
-	
-	if (position.z < dsposition.z)
+	if (dsposition.z < position.z)
 	{
-		mixPosition = dsposition;
-		mixColor.rgb = dscolor.rgb;
+		mixPosition = position;
+		mixColor.rgb = color.rgb;
 	}
 	
 	if (color.a == 0)
@@ -62,7 +59,7 @@ void main()
 	position = mixPosition;
 	
 	gPosition = position;
-	//gPosition = vec3(-(position.z));
+	//gPosition = vec3(-position.z);
 	gNormal = normal;
 	gColor = color;
 }

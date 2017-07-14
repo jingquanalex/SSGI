@@ -57,8 +57,6 @@ vec3 depthToViewPosition(float depth, vec2 texcoord)
     return (viewPosition / viewPosition.w).xyz;
 }
 
-const float cx = 640 / 2;
-const float cy = 480 / 2;
 const float fx = tan(radians(61.9999962) / 2) * 2;
 const float fy = tan(radians(48.5999985) / 2) * 2;
 
@@ -71,22 +69,6 @@ vec3 dsDepthToWorldPosition(sampler2D samplerDepth, vec2 texcoord)
 	float y = normalizedY * z * fy;
 	z -= 1;
 	return vec3(x, y, z);
-}
-
-vec4 circle(vec2 pos, float radius, vec3 color)
-{
-	vec2 vd = pos - TexCoord;
-	vd.x *=  screenWidth / screenHeight;
-	return vec4(color, step(length(vd), radius));
-}
-
-const float nearPlane = 0.1;
-const float farPlane = 100.0;
-
-float LinearizeDepth(float depth)
-{
-    float z = depth * 2.0 - 1.0;
-    return (2.0 * nearPlane * farPlane) / (farPlane + nearPlane - z * (farPlane - nearPlane)) / farPlane;
 }
 
 // Rendering equation, cook torrance brdf
@@ -237,11 +219,9 @@ void main()
 	// Reconstruct position from depth buffer
 	//position = depthToViewPosition(depth, TexCoord);
 	
-	// Depth sensor textures
+	// Depth sensor outputs
 	vec4 dscolor = texture(dsColor, TexCoord);
 	float dsdepth = texture(dsDepth, TexCoord).r;
-	
-	// Reconstructed position from depth (kinect)
 	vec3 dsposition = dsDepthToWorldPosition(dsDepth, TexCoord);
 	
 	
@@ -263,8 +243,7 @@ void main()
 		fsample = position + fsample * kernelRadius;
 		
 		// view space offset vectors to window space
-		vec4 offset = vec4(fsample, 1.0);
-        offset = kinectProjection * offset;
+        vec4 offset = kinectProjection * vec4(fsample, 1.0);
         offset.xyz /= offset.w;
         offset.xyz = offset.xyz * 0.5 + 0.5;
 		

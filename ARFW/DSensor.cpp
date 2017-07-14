@@ -134,8 +134,8 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 	// Create projection matrix (depth)
 	float fovX = glm::degrees(depthStream.getHorizontalFieldOfView());
 	float fovY = glm::degrees(depthStream.getVerticalFieldOfView());
-	float w = (float)windowWidth / videoWidth * fovX;
-	float h = (float)windowHeight / videoHeight * fovY;
+	float w = (float)windowWidth / videoWidth;
+	float h = (float)windowHeight / videoHeight;
 	matProjection = glm::perspective(glm::radians(fovY), w / h, 0.01f, 1000.0f);
 	matProjectionInverse = inverse(matProjection);
 
