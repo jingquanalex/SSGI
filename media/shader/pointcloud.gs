@@ -13,7 +13,7 @@ layout (std140, binding = 9) uniform MatCam
 	mat4 kinectProjectionInverse;
 };
 
-uniform float radius = 0.001;
+uniform float radius = 0.000;
 
 in vec4 gsPosition[];
 in vec4 gsPositionWorld[];
@@ -32,19 +32,21 @@ void main()
 	Color = gsColor[0];
 	Radius = radius;
 	
-	gl_Position = projection * (Position + vec4(-radius, -radius, 0.0, 0.0));
+	mat4 Projection = kinectProjection;
+	
+	gl_Position = Projection * (Position + vec4(-radius, -radius, 0.0, 0.0));
 	TexCoord = vec2(0.0, 0.0);
 	EmitVertex();
 
-	gl_Position = projection * (Position + vec4(radius, -radius, 0.0, 0.0));
+	gl_Position = Projection * (Position + vec4(radius, -radius, 0.0, 0.0));
 	TexCoord = vec2(1.0, 0.0);
 	EmitVertex();
 	
-	gl_Position = projection * (Position + vec4(-radius, radius, 0.0, 0.0));
+	gl_Position = Projection * (Position + vec4(-radius, radius, 0.0, 0.0));
 	TexCoord = vec2(0.0, 1.0);
 	EmitVertex();
 	
-	gl_Position = projection * (Position + vec4(radius, radius, 0.0, 0.0));
+	gl_Position = Projection * (Position + vec4(radius, radius, 0.0, 0.0));
 	TexCoord = vec2(1.0, 1.0);
 	EmitVertex();
 	

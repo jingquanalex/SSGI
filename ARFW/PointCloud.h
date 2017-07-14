@@ -20,6 +20,8 @@ public:
 	~PointCloud();
 
 	void draw();
+	void drawMeshOnly();
+
 	void recompileShader();
 
 	Shader* getShader();

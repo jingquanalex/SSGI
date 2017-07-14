@@ -24,9 +24,9 @@ Scene::~Scene()
 
 void Scene::recompileShaders()
 {
+	sensor->recompileShaders();
 	gPassShader->recompile();
 	gBlendPassShader->recompile();
-	gMedianPassShader->recompile();
 	lightingPassShader->recompile();
 	compositeShader->recompile();
 	pointCloud->recompileShader();
@@ -46,11 +46,6 @@ void Scene::initializeShaders()
 	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "gInColor"), 2);
 	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "dsColor"), 3);
 	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "dsDepth"), 4);
-
-	gMedianPassShader->apply();
-	glUniform1i(glGetUniformLocation(gMedianPassShader->getShaderId(), "gInPosition"), 0);
-	glUniform1i(glGetUniformLocation(gMedianPassShader->getShaderId(), "gInNormal"), 1);
-	glUniform1i(glGetUniformLocation(gMedianPassShader->getShaderId(), "gInColor"), 2);
 
 	lightingPassShader->apply();
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
@@ -79,7 +74,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	bufferHeight = g_windowHeight;
 	camera = new CameraFPS(g_windowWidth, g_windowHeight);
 	camera->setActive(true);
-	camera->setMoveSpeed(4);
+	camera->setMoveSpeed(1);
 	camera->setPosition(vec3(0, 0, 0));
 	camera->setDirection(vec3(0, 0, -1));
 	gPassShader = new Shader("gPass");
@@ -87,7 +82,6 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	lightingPassShader = new Shader("lightingPass");
 	if (lightingPassShader->hasError()) return;
 	gBlendPassShader = new Shader("gBlendPass");
-	gMedianPassShader = new Shader("gMedianPass");
 
 	quad = new Quad();
 	plane = new Object();
@@ -98,8 +92,8 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	sponza = new Object();
 	sponza->setGPassShaderId(gPassShader->getShaderId());
 	//sponza->setScale(vec3(0.05f));
-	sponza->setScale(vec3(0.5f));
-	//sponza->setPosition(vec3(0, 0, -4));
+	sponza->setScale(vec3(0.25f));
+	sponza->setPosition(vec3(0, 0, -0.5));
 	sponza->setRotation(vec3(0, 90, 0));
 	sponza->load("dragon.obj");
 	//sponza->load("sibenik/sibenik.obj");
@@ -208,7 +202,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	const GLuint attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
 	glDrawBuffers(3, attachments);
 
-	// Create buffers for gBlend pass TODO: optimize texture array and glTextureBarrier
+	// Create buffers for gBlend pass
 	glGenFramebuffers(1, &gBlendBuffer);
 	glBindFramebuffer(GL_FRAMEBUFFER, gBlendBuffer);
 
@@ -340,7 +334,7 @@ void Scene::render()
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texMask);
 
-	//sponza->draw();
+	sponza->draw();
 	//plane->drawMeshOnly();
 
 	// Blend G-Buffer and kinect buffers
@@ -363,21 +357,6 @@ void Scene::render()
 
 	quad->draw();
 
-	// Median filter pass
-	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-	glViewport(0, 0, bufferWidth, bufferHeight);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	gMedianPassShader->apply();
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gBlendPosition);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, gBlendNormal);
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, gBlendColor);
-
-	quad->draw();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	//glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
@@ -390,11 +369,11 @@ void Scene::render()
 	lightingPassShader->apply();
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gPosition);
+	glBindTexture(GL_TEXTURE_2D, gBlendPosition);
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, gNormal);
+	glBindTexture(GL_TEXTURE_2D, gBlendNormal);
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, gColor);
+	glBindTexture(GL_TEXTURE_2D, gBlendColor);
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D, gDepth);
 	glActiveTexture(GL_TEXTURE4);

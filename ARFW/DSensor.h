@@ -1,6 +1,8 @@
 #pragma once
 
 #include "global.h"
+#include "Quad.h"
+#include "Shader.h"
 #include <OpenNI2\OpenNI.h>
 
 const GLuint maxDepth = 10000;
@@ -19,6 +21,7 @@ private:
 	uint16_t* texDepthMap;
 
 	GLuint gltexColorMap, gltexDepthMap;
+	GLuint gltexDepthMapPrev;
 
 	GLuint minNumChunks(GLuint dataSize, GLuint chunkSize);
 	GLuint minChunkSize(GLuint dataSize, GLuint chunkSize);
@@ -26,13 +29,22 @@ private:
 
 	glm::mat4 matProjection, matProjectionInverse;
 
+	GLuint fbo, fbo2;
+	GLuint outColorMap, outDepthMap;
+	GLuint outColorMap2, outDepthMap2;
+	Quad* quad;
+	Shader* fillShader;
+	Shader* medianShader;
+
 public:
 
 	DSensor();
 	~DSensor();
 
 	void initialize(int windowWidth, int windowHeight);
+	void recompileShaders();
 	void update();
+	
 
 	GLuint getColorMapId() const;
 	GLuint getDepthMapId() const;

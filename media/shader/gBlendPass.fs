@@ -20,21 +20,13 @@ const float fy = tan(radians(48.5999985) / 2) * 2;
 vec3 dsDepthToWorldPosition(sampler2D samplerDepth, vec2 texcoord)
 {
 	float normalizedX = texcoord.x - 0.5;
-	float normalizedY = 0.5 - texcoord.y;
+	float normalizedY = texcoord.y - 0.5;
 	float z = texture(samplerDepth, texcoord).r;
 	float x = normalizedX * z * fx;
 	float y = normalizedY * z * fy;
+	z = z - 1;
 	return vec3(x, y, z);
 }
-
-
-vec2 neighborOffsets[4] = vec2[]
-(
-	vec2(1 / imgWidth, 0),
-    vec2(-1 / imgWidth, 0),
-	vec2(0, 1 / imgHeight),
-	vec2(0, -1 / imgHeight)
-);
 
 void main()
 {
@@ -43,46 +35,21 @@ void main()
     vec4 color = texture(gInColor, TexCoord);
 	
 	// Depth sensor textures
-	vec2 dsTexCoord = vec2(TexCoord.x, 1.0 - TexCoord.y);
-	vec4 dscolor = texture(dsColor, dsTexCoord);
-	float dsdepth = texture(dsDepth, dsTexCoord).r;
+	vec4 dscolor = texture(dsColor, TexCoord);
+	float dsdepth = texture(dsDepth, TexCoord).r;
 	
 	// Reconstructed position from depth (kinect)
-	vec3 dsposition = dsDepthToWorldPosition(dsDepth, dsTexCoord);
+	vec3 dsposition = dsDepthToWorldPosition(dsDepth, TexCoord);
 	
-	// Test: Fill hole in depth buffer - pick nearest adjacent neighbor
-	if (dsdepth < 0.00001)
+	
+	vec3 mixPosition = position;
+	vec4 mixColor = color;
+	//mixColor.a = color.a;
+	
+	if (position.z < dsposition.z)
 	{
-		int kernelRadius = 25;
-		vec3 nearestPos = vec3(0, 0, 0);
-		for (int i = 1; i < kernelRadius; i++)
-		{
-			for (int j = 0; j < 4; j++)
-			{
-				vec2 offset = i * neighborOffsets[j];
-				float offsetDepth = texture(dsDepth, dsTexCoord + offset).r;
-				
-				if (offsetDepth > 0.001)
-				{
-					nearestPos = dsDepthToWorldPosition(dsDepth, dsTexCoord + offset);
-					break;
-				}
-			}
-			
-			if (nearestPos != vec3(0, 0, 0)) break;
-		}
-		dsposition = nearestPos;
-	}
-	
-	
-	vec3 mixPosition = dsposition;
-	vec4 mixColor = dscolor;
-	mixColor.a = color.a;
-	
-	if (mixPosition.z < position.z)
-	{
-		mixPosition = position;
-		mixColor.rgb = color.rgb;
+		mixPosition = dsposition;
+		mixColor.rgb = dscolor.rgb;
 	}
 	
 	if (color.a == 0)
@@ -95,6 +62,7 @@ void main()
 	position = mixPosition;
 	
 	gPosition = position;
+	//gPosition = vec3(-(position.z));
 	gNormal = normal;
 	gColor = color;
 }

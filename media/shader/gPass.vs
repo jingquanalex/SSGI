@@ -28,5 +28,5 @@ void main()
 	Normal = mat3(transpose(inverse(view * model))) * normal;
 	//Normal = mat3(transpose(modelInverse)) * normal;
 	TexCoord = texcoord;
-	gl_Position = projection * viewPos;
+	gl_Position = kinectProjection * viewPos;
 }

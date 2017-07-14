@@ -64,10 +64,12 @@ const float fy = tan(radians(48.5999985) / 2) * 2;
 
 vec3 dsDepthToWorldPosition(sampler2D samplerDepth, vec2 texcoord)
 {
-	float z = texture(samplerDepth, texcoord).r * 5;
-	float x = (texcoord.x * 640 - cx) * z * fx / 440;
-	float y = (cy - texcoord.y * 480) * z * fy / 440;
-	z -= 7;
+	float normalizedX = texcoord.x - 0.5;
+	float normalizedY = texcoord.y - 0.5;
+	float z = texture(samplerDepth, texcoord).r;
+	float x = normalizedX * z * fx;
+	float y = normalizedY * z * fy;
+	z -= 1;
 	return vec3(x, y, z);
 }
 
@@ -236,12 +238,11 @@ void main()
 	//position = depthToViewPosition(depth, TexCoord);
 	
 	// Depth sensor textures
-	vec2 dsTexCoord = vec2(TexCoord.x, 1.0 - TexCoord.y);
-	vec4 dscolor = texture(dsColor, dsTexCoord);
-	float dsdepth = texture(dsDepth, dsTexCoord).r;
+	vec4 dscolor = texture(dsColor, TexCoord);
+	float dsdepth = texture(dsDepth, TexCoord).r;
 	
 	// Reconstructed position from depth (kinect)
-	vec3 dsposition = dsDepthToWorldPosition(dsDepth, dsTexCoord);
+	vec3 dsposition = dsDepthToWorldPosition(dsDepth, TexCoord);
 	
 	
 	
@@ -261,14 +262,13 @@ void main()
 		vec3 fsample = samples[i];
 		fsample = position + fsample * kernelRadius;
 		
+		// view space offset vectors to window space
 		vec4 offset = vec4(fsample, 1.0);
-        offset = projection * offset; // from view to clip-space
-        offset.xyz /= offset.w; // perspective divide
-        offset.xyz = offset.xyz * 0.5 + 0.5; // transform to range 0.0 - 1.0
+        offset = kinectProjection * offset;
+        offset.xyz /= offset.w;
+        offset.xyz = offset.xyz * 0.5 + 0.5;
 		
 		float sampleDepth = texture(gPosition, offset.xy).z;
-		//float sampleDepthDS = dsDepthToWorldPosition(dsDepth, offset.xy).z;
-		//sampleDepth = mix(sampleDepthDS, sampleDepth, color.a);
 		float rangeCheck = smoothstep(0.0, 1.0, kernelRadius / abs(position.z - sampleDepth));
 		occlusion += (sampleDepth >= fsample.z + sampleBias ? 1.0 : 0.0) * rangeCheck;
 	}

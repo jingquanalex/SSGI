@@ -27,10 +27,11 @@ const float fy = tan(radians(48.5999985) / 2) * 2;
 vec3 dsDepthToWorldPosition(sampler2D samplerDepth, ivec2 texcoord)
 {
 	float normalizedX = texcoord.x / imgWidth - 0.5;
-	float normalizedY = 0.5 - texcoord.y / imgHeight;
+	float normalizedY = texcoord.y / imgHeight- 0.5;
 	float z = texelFetch(samplerDepth, texcoord, 0).r;
 	float x = normalizedX * z * fx;
 	float y = normalizedY * z * fy;
+	z = (1 - z) - 1;
 	return vec3(x, y, z);
 }
 

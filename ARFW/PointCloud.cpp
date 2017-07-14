@@ -51,6 +51,12 @@ void PointCloud::draw()
 	glDrawArrays(GL_POINTS, 0, texWidth * texHeight);
 }
 
+void PointCloud::drawMeshOnly()
+{
+	glBindVertexArray(vao);
+	glDrawArrays(GL_POINTS, 0, texWidth * texHeight);
+}
+
 void PointCloud::recompileShader()
 {
 	pointCloudShader->recompile();

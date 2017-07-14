@@ -136,7 +136,7 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 	float fovY = glm::degrees(depthStream.getVerticalFieldOfView());
 	float w = (float)windowWidth / videoWidth * fovX;
 	float h = (float)windowHeight / videoHeight * fovY;
-	matProjection = glm::perspective(glm::radians(fovY), w / h, 0.1f, 1000.0f);
+	matProjection = glm::perspective(glm::radians(fovY), w / h, 0.01f, 1000.0f);
 	matProjectionInverse = inverse(matProjection);
 
 	// Texture map init
@@ -170,6 +170,80 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glGenTextures(1, &gltexDepthMapPrev);
+	glBindTexture(GL_TEXTURE_2D, gltexDepthMapPrev);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, texWidth, texHeight, 0, GL_RED, GL_UNSIGNED_SHORT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	quad = new Quad();
+	fillShader = new Shader("dsFill");
+	medianShader = new Shader("dsMedian");
+	recompileShaders();
+	
+	glGenFramebuffers(1, &fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+	glGenTextures(1, &outColorMap);
+	glBindTexture(GL_TEXTURE_2D, outColorMap);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, outColorMap, 0);
+
+	glGenTextures(1, &outDepthMap);
+	glBindTexture(GL_TEXTURE_2D, outDepthMap);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, texWidth, texHeight, 0, GL_RED, GL_UNSIGNED_SHORT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, outDepthMap, 0);
+
+	const GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+	glDrawBuffers(2, attachments);
+
+	glGenFramebuffers(1, &fbo2);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
+
+	glGenTextures(1, &outColorMap2);
+	glBindTexture(GL_TEXTURE_2D, outColorMap2);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, outColorMap2, 0);
+
+	glGenTextures(1, &outDepthMap2);
+	glBindTexture(GL_TEXTURE_2D, outDepthMap2);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, texWidth, texHeight, 0, GL_RED, GL_UNSIGNED_SHORT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, outDepthMap2, 0);
+
+	glDrawBuffers(2, attachments);
+}
+
+void DSensor::recompileShaders()
+{
+	fillShader->recompile();
+	fillShader->apply();
+	glUniform1i(glGetUniformLocation(fillShader->getShaderId(), "dsColor"), 0);
+	glUniform1i(glGetUniformLocation(fillShader->getShaderId(), "dsDepth"), 1);
+	glUniform1i(glGetUniformLocation(fillShader->getShaderId(), "dsDepthPrev"), 2);
+
+	medianShader->recompile();
+	medianShader->apply();
+	glUniform1i(glGetUniformLocation(medianShader->getShaderId(), "dsColor"), 0);
+	glUniform1i(glGetUniformLocation(medianShader->getShaderId(), "dsDepth"), 1);
 }
 
 void DSensor::update()
@@ -220,6 +294,9 @@ void DSensor::update()
 	// Map 11bit depth to 16 bit and copy into 16bit depth buffer
 	if (depthFrame.isValid())
 	{
+		glBindTexture(GL_TEXTURE_2D, gltexDepthMapPrev);
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RED, GL_UNSIGNED_SHORT, texDepthMap);
+
 		memset(texDepthMap, 0, texWidth * texHeight * sizeof(uint16_t));
 
 		const openni::DepthPixel* pDepthRow = (const openni::DepthPixel*)depthFrame.getData();
@@ -249,17 +326,49 @@ void DSensor::update()
 
 		glBindTexture(GL_TEXTURE_2D, gltexDepthMap);
 		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RED, GL_UNSIGNED_SHORT, texDepthMap);
+
+		// 1st Pass, filp kinect y textures, fill holes
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+		glViewport(0, 0, texWidth, texHeight);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		fillShader->apply();
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, gltexColorMap);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, gltexDepthMap);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, gltexDepthMapPrev);
+
+		quad->draw();
+
+		// Median filter pass
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
+		glViewport(0, 0, texWidth, texHeight);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		medianShader->apply();
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, outColorMap);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, outDepthMap);
+
+		quad->draw();
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 }
 
 GLuint DSensor::getColorMapId() const
 {
-	return gltexColorMap;
+	return outColorMap2;
 }
 
 GLuint DSensor::getDepthMapId() const
 {
-	return gltexDepthMap;
+	return outDepthMap2;
 }
 
 glm::mat4 DSensor::getMatProjection() const

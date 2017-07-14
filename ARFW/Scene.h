@@ -28,9 +28,8 @@ private:
 	Shader* gPassShader = nullptr;
 	Shader* lightingPassShader = nullptr;
 	Shader* gBlendPassShader = nullptr;
-	Shader* gMedianPassShader = nullptr;
 	SSAO* ssao = nullptr;
-	float ssaoKernelRadius = 0.35f;
+	float ssaoKernelRadius = 0.1f;
 	float ssaoSampleBias = 0.0f;
 	int bufferWidth, bufferHeight;
 
