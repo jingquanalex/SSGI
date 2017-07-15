@@ -20,8 +20,8 @@ private:
 	openni::RGB888Pixel* texColorMap;
 	uint16_t* texDepthMap;
 
-	GLuint gltexColorMap, gltexDepthMap;
-	GLuint gltexDepthMapPrev;
+	GLuint dsColorMap, dsDepthMap;
+	GLuint dsDepthMapPrev;
 
 	GLuint minNumChunks(GLuint dataSize, GLuint chunkSize);
 	GLuint minChunkSize(GLuint dataSize, GLuint chunkSize);
@@ -30,11 +30,13 @@ private:
 	glm::mat4 matProjection, matProjectionInverse;
 
 	GLuint fbo, fbo2;
-	GLuint outColorMap, outDepthMap;
-	GLuint outColorMap2, outDepthMap2;
+	GLuint outColorMap, outDepthMap, outPositionMap, outNormalMap;
+	GLuint outColorMap2, outDepthMap2, outPositionMap2, outNormalMap2;
 	Quad* quad;
 	Shader* fillShader;
 	Shader* medianShader;
+	Shader* positionShader;
+	Shader* blurShader;
 
 public:
 
@@ -48,6 +50,8 @@ public:
 
 	GLuint getColorMapId() const;
 	GLuint getDepthMapId() const;
+	GLuint getPositionMapId() const;
+	GLuint getNormalMapId() const;
 	glm::mat4 getMatProjection() const;
 	glm::mat4 getMatProjectionInverse() const;
 	void toggleRendering();

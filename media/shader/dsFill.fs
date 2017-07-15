@@ -3,7 +3,7 @@
 in vec2 TexCoord;
 
 layout (location = 0) out vec4 dsOutColor;
-layout (location = 1) out vec4 dsOutDepth;
+layout (location = 1) out float dsOutDepth;
 
 uniform sampler2D dsColor;
 uniform sampler2D dsDepth;
@@ -61,5 +61,5 @@ void main()
 	}
 	
 	dsOutColor = dscolor;
-	dsOutDepth = vec4(dsdepth);
+	dsOutDepth = dsdepth;
 }

@@ -10,23 +10,11 @@ uniform sampler2D gInPosition;
 uniform sampler2D gInNormal;
 uniform sampler2D gInColor;
 uniform sampler2D dsColor;
-uniform sampler2D dsDepth;
+uniform sampler2D dsPosition;
+uniform sampler2D dsNormal;
 
 const float imgWidth = 640;
 const float imgHeight = 480;
-const float fx = tan(radians(61.9999962) / 2) * 2;
-const float fy = tan(radians(48.5999985) / 2) * 2;
-
-vec3 dsDepthToWorldPosition(sampler2D samplerDepth, vec2 texcoord)
-{
-	float normalizedX = 0.5 - texcoord.x;
-	float normalizedY = 0.5 - texcoord.y;
-	float z = texture(samplerDepth, texcoord).r - 1;
-	float x = normalizedX * z * fx;
-	float y = normalizedY * z * fy;
-	
-	return vec3(x, y, z);
-}
 
 void main()
 {
@@ -36,30 +24,33 @@ void main()
 	
 	// Depth sensor outputs
 	vec4 dscolor = texture(dsColor, TexCoord);
-	float dsdepth = texture(dsDepth, TexCoord).r;
-	vec3 dsposition = dsDepthToWorldPosition(dsDepth, TexCoord);
+	vec3 dsposition = texture(dsPosition, TexCoord).rgb;
+	vec3 dsnormal = texture(dsNormal, TexCoord).rgb;
 	
 	// Mix gBuffer and kinect position and color
 	vec3 mixPosition = dsposition;
 	vec4 mixColor = dscolor;
+	vec3 mixNormal = dsnormal;
 	
 	if (dsposition.z < position.z)
 	{
 		mixPosition = position;
 		mixColor.rgb = color.rgb;
+		mixNormal = normal;
 	}
 	
 	if (color.a == 0)
 	{
 		mixPosition = dsposition;
 		mixColor.rgb = dscolor.rgb;
+		mixNormal = dsnormal;
 	}
 	
 	color = mixColor;
 	position = mixPosition;
+	normal = mixNormal;
 	
 	gPosition = position;
-	//gPosition = vec3(-position.z);
 	gNormal = normal;
 	gColor = color;
 }

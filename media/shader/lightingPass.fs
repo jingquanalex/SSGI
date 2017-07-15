@@ -62,12 +62,12 @@ const float fy = tan(radians(48.5999985) / 2) * 2;
 
 vec3 dsDepthToWorldPosition(sampler2D samplerDepth, vec2 texcoord)
 {
-	float normalizedX = texcoord.x - 0.5;
-	float normalizedY = texcoord.y - 0.5;
-	float z = texture(samplerDepth, texcoord).r;
+	float normalizedX = 0.5 - texcoord.x;
+	float normalizedY = 0.5 - texcoord.y;
+	float z = texture(samplerDepth, texcoord).r - 1;
 	float x = normalizedX * z * fx;
 	float y = normalizedY * z * fy;
-	z -= 1;
+	
 	return vec3(x, y, z);
 }
 
@@ -228,7 +228,8 @@ void main()
 	
 	
 	// SSAO occlusion
-	vec2 noiseScale = vec2(screenWidth / 4, screenHeight / 4);
+	vec2 noiseScale = vec2(screenWidth / 1, screenHeight / 1);
+	//vec2 noiseScale = vec2(screenWidth / 4, screenHeight / 4);
 	vec3 randomVec = texture(texNoise, TexCoord * noiseScale).xyz;
 	vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
 	vec3 bitangent = cross(normal, tangent);
@@ -238,8 +239,8 @@ void main()
 	float occlusion = 0.0;
 	for(int i = 0; i < kernelSize; ++i)
 	{
-		//vec3 fsample = TBN * samples[i];
-		vec3 fsample = samples[i];
+		vec3 fsample = TBN * samples[i];
+		//vec3 fsample = samples[i];
 		fsample = position + fsample * kernelRadius;
 		
 		// view space offset vectors to window space

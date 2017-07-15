@@ -45,7 +45,8 @@ void Scene::initializeShaders()
 	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "gInNormal"), 1);
 	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "gInColor"), 2);
 	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "dsColor"), 3);
-	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "dsDepth"), 4);
+	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "dsPosition"), 4);
+	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "dsNormal"), 5);
 
 	lightingPassShader->apply();
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
@@ -83,6 +84,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	if (lightingPassShader->hasError()) return;
 	gBlendPassShader = new Shader("gBlendPass");
 
+	ssao = new SSAO();
 	quad = new Quad();
 	plane = new Object();
 	plane->setGPassShaderId(gPassShader->getShaderId());
@@ -264,8 +266,6 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	// Init SSAO shader data
-	ssao = new SSAO();
 
 	// Init shader uniforms
 	initializeShaders();
@@ -353,7 +353,9 @@ void Scene::render()
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D, sensor->getColorMapId());
 	glActiveTexture(GL_TEXTURE4);
-	glBindTexture(GL_TEXTURE_2D, sensor->getDepthMapId());
+	glBindTexture(GL_TEXTURE_2D, sensor->getPositionMapId());
+	glActiveTexture(GL_TEXTURE5);
+	glBindTexture(GL_TEXTURE_2D, sensor->getNormalMapId());
 
 	quad->draw();
 

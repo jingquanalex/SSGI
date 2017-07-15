@@ -155,24 +155,24 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 		initOk = true;
 	}
 
-	glGenTextures(1, &gltexColorMap);
-	glBindTexture(GL_TEXTURE_2D, gltexColorMap);
+	glGenTextures(1, &dsColorMap);
+	glBindTexture(GL_TEXTURE_2D, dsColorMap);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-	glGenTextures(1, &gltexDepthMap);
-	glBindTexture(GL_TEXTURE_2D, gltexDepthMap);
+	glGenTextures(1, &dsDepthMap);
+	glBindTexture(GL_TEXTURE_2D, dsDepthMap);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, texWidth, texHeight, 0, GL_RED, GL_UNSIGNED_SHORT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-	glGenTextures(1, &gltexDepthMapPrev);
-	glBindTexture(GL_TEXTURE_2D, gltexDepthMapPrev);
+	glGenTextures(1, &dsDepthMapPrev);
+	glBindTexture(GL_TEXTURE_2D, dsDepthMapPrev);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, texWidth, texHeight, 0, GL_RED, GL_UNSIGNED_SHORT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -182,6 +182,8 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 	quad = new Quad();
 	fillShader = new Shader("dsFill");
 	medianShader = new Shader("dsMedian");
+	positionShader = new Shader("dsPosition");
+	blurShader = new Shader("dsBlur");
 	recompileShaders();
 	
 	glGenFramebuffers(1, &fbo);
@@ -198,15 +200,33 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 
 	glGenTextures(1, &outDepthMap);
 	glBindTexture(GL_TEXTURE_2D, outDepthMap);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, texWidth, texHeight, 0, GL_RED, GL_UNSIGNED_SHORT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, texWidth, texHeight, 0, GL_RED, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, outDepthMap, 0);
 
-	const GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-	glDrawBuffers(2, attachments);
+	glGenTextures(1, &outPositionMap);
+	glBindTexture(GL_TEXTURE_2D, outPositionMap);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, outPositionMap, 0);
+
+	glGenTextures(1, &outNormalMap);
+	glBindTexture(GL_TEXTURE_2D, outNormalMap);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, outNormalMap, 0);
+
+	const GLuint attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
+	glDrawBuffers(4, attachments);
 
 	glGenFramebuffers(1, &fbo2);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
@@ -222,14 +242,32 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 
 	glGenTextures(1, &outDepthMap2);
 	glBindTexture(GL_TEXTURE_2D, outDepthMap2);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, texWidth, texHeight, 0, GL_RED, GL_UNSIGNED_SHORT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, texWidth, texHeight, 0, GL_RED, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, outDepthMap2, 0);
 
-	glDrawBuffers(2, attachments);
+	glGenTextures(1, &outPositionMap2);
+	glBindTexture(GL_TEXTURE_2D, outPositionMap2);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, outPositionMap2, 0);
+
+	glGenTextures(1, &outNormalMap2);
+	glBindTexture(GL_TEXTURE_2D, outNormalMap2);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, outNormalMap2, 0);
+
+	glDrawBuffers(4, attachments);
 }
 
 void DSensor::recompileShaders()
@@ -244,6 +282,18 @@ void DSensor::recompileShaders()
 	medianShader->apply();
 	glUniform1i(glGetUniformLocation(medianShader->getShaderId(), "dsColor"), 0);
 	glUniform1i(glGetUniformLocation(medianShader->getShaderId(), "dsDepth"), 1);
+
+	positionShader->recompile();
+	positionShader->apply();
+	glUniform1i(glGetUniformLocation(positionShader->getShaderId(), "dsColor"), 0);
+	glUniform1i(glGetUniformLocation(positionShader->getShaderId(), "dsDepth"), 1);
+
+	blurShader->recompile();
+	blurShader->apply();
+	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "dsColor"), 0);
+	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "dsDepth"), 1);
+	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "dsPosition"), 2);
+	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "dsNormal"), 3);
 }
 
 void DSensor::update()
@@ -279,7 +329,7 @@ void DSensor::update()
 	{
 		const openni::RGB888Pixel* imageBuffer = (const openni::RGB888Pixel*)colorFrame.getData();
 		memcpy(texColorMap, imageBuffer, colorFrame.getWidth() * colorFrame.getHeight() * 3 * sizeof(uint8_t));
-		glBindTexture(GL_TEXTURE_2D, gltexColorMap);
+		glBindTexture(GL_TEXTURE_2D, dsColorMap);
 		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RGB, GL_UNSIGNED_BYTE, texColorMap);
 	}
 
@@ -294,21 +344,21 @@ void DSensor::update()
 	// Map 11bit depth to 16 bit and copy into 16bit depth buffer
 	if (depthFrame.isValid())
 	{
-		glBindTexture(GL_TEXTURE_2D, gltexDepthMapPrev);
+		glBindTexture(GL_TEXTURE_2D, dsDepthMapPrev);
 		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RED, GL_UNSIGNED_SHORT, texDepthMap);
 
 		memset(texDepthMap, 0, texWidth * texHeight * sizeof(uint16_t));
 
-		const openni::DepthPixel* pDepthRow = (const openni::DepthPixel*)depthFrame.getData();
+		const uint16_t* pDepthRow = (const uint16_t*)depthFrame.getData();
 		uint16_t* pTexRow = texDepthMap + depthFrame.getCropOriginY() * texWidth;
-		int rowSize = depthFrame.getStrideInBytes() / sizeof(openni::DepthPixel);
+		int rowSize = depthFrame.getStrideInBytes() / sizeof(uint16_t);
 
 		float depthHist[maxDepth];
 		calculateHistogram(depthHist, maxDepth, depthFrame);
 
 		for (int y = 0; y < depthFrame.getHeight(); ++y)
 		{
-			const openni::DepthPixel* pDepth = pDepthRow;
+			const uint16_t* pDepth = pDepthRow;
 			uint16_t* pTex = pTexRow + depthFrame.getCropOriginX();
 
 			for (int x = 0; x < depthFrame.getWidth(); ++x, ++pDepth, ++pTex)
@@ -324,9 +374,12 @@ void DSensor::update()
 			pTexRow += texWidth;
 		}
 
-		glBindTexture(GL_TEXTURE_2D, gltexDepthMap);
+		glBindTexture(GL_TEXTURE_2D, dsDepthMap);
 		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RED, GL_UNSIGNED_SHORT, texDepthMap);
+	}
 
+	if (depthFrame.isValid())
+	{
 		// 1st Pass, filp kinect y textures, fill holes
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 		glViewport(0, 0, texWidth, texHeight);
@@ -335,11 +388,11 @@ void DSensor::update()
 		fillShader->apply();
 
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, gltexColorMap);
+		glBindTexture(GL_TEXTURE_2D, dsColorMap);
 		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, gltexDepthMap);
+		glBindTexture(GL_TEXTURE_2D, dsDepthMap);
 		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, gltexDepthMapPrev);
+		glBindTexture(GL_TEXTURE_2D, dsDepthMapPrev);
 
 		quad->draw();
 
@@ -357,6 +410,38 @@ void DSensor::update()
 
 		quad->draw();
 
+		// Generate position and normal pass
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+		glViewport(0, 0, texWidth, texHeight);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		positionShader->apply();
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, outColorMap2);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, outDepthMap2);
+
+		quad->draw();
+
+		// Blur pass
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
+		glViewport(0, 0, texWidth, texHeight);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		blurShader->apply();
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, outColorMap);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, outDepthMap);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, outPositionMap);
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, outNormalMap);
+
+		quad->draw();
+
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 }
@@ -369,6 +454,16 @@ GLuint DSensor::getColorMapId() const
 GLuint DSensor::getDepthMapId() const
 {
 	return outDepthMap2;
+}
+
+GLuint DSensor::getPositionMapId() const
+{
+	return outPositionMap2;
+}
+
+GLuint DSensor::getNormalMapId() const
+{
+	return outNormalMap2;
 }
 
 glm::mat4 DSensor::getMatProjection() const
@@ -396,12 +491,12 @@ GLuint DSensor::minChunkSize(GLuint dataSize, GLuint chunkSize)
 	return minNumChunks(dataSize, chunkSize) * chunkSize;
 }
 
-// Fit kinect 11bit depth to 16bit buffer
+// Fit kinect data to 16bit buffer
 void DSensor::calculateHistogram(float* pHistogram, int histogramSize, const openni::VideoFrameRef& frame)
 {
-	const openni::DepthPixel* pDepth = (const openni::DepthPixel*)frame.getData();
+	const uint16_t* pDepth = (const uint16_t*)frame.getData();
 	memset(pHistogram, 0, histogramSize * sizeof(float));
-	int restOfRow = frame.getStrideInBytes() / sizeof(openni::DepthPixel) - frame.getWidth();
+	int restOfRow = frame.getStrideInBytes() / sizeof(uint16_t) - frame.getWidth();
 	int height = frame.getHeight();
 	int width = frame.getWidth();
 
@@ -418,13 +513,16 @@ void DSensor::calculateHistogram(float* pHistogram, int histogramSize, const ope
 		}
 		pDepth += restOfRow;
 	}
-	for (int nIndex = 1; nIndex<histogramSize; nIndex++)
+	//std::cout << restOfRow << "\n";
+
+	for (int nIndex = 1; nIndex < histogramSize; nIndex++)
 	{
 		pHistogram[nIndex] += pHistogram[nIndex - 1];
 	}
+
 	if (nNumberOfPoints)
 	{
-		for (int nIndex = 1; nIndex<histogramSize; nIndex++)
+		for (int nIndex = 1; nIndex < histogramSize; nIndex++)
 		{
 			pHistogram[nIndex] = (65536 * (1.0f - (pHistogram[nIndex] / nNumberOfPoints)));
 		}
