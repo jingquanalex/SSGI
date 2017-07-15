@@ -21,7 +21,7 @@ private:
 	uint16_t* texDepthMap;
 
 	GLuint dsColorMap, dsDepthMap;
-	GLuint dsDepthMapPrev;
+	int dsDepthMapLayers, dsDepthMapLayerCounter = 1;
 
 	GLuint minNumChunks(GLuint dataSize, GLuint chunkSize);
 	GLuint minChunkSize(GLuint dataSize, GLuint chunkSize);
@@ -33,6 +33,7 @@ private:
 	GLuint outColorMap, outDepthMap, outPositionMap, outNormalMap;
 	GLuint outColorMap2, outDepthMap2, outPositionMap2, outNormalMap2;
 	Quad* quad;
+	Shader* averageFramesShader;
 	Shader* fillShader;
 	Shader* medianShader;
 	Shader* positionShader;

@@ -163,23 +163,18 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
+	dsDepthMapLayers = 6;
 	glGenTextures(1, &dsDepthMap);
-	glBindTexture(GL_TEXTURE_2D, dsDepthMap);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, texWidth, texHeight, 0, GL_RED, GL_UNSIGNED_SHORT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-	glGenTextures(1, &dsDepthMapPrev);
-	glBindTexture(GL_TEXTURE_2D, dsDepthMapPrev);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, texWidth, texHeight, 0, GL_RED, GL_UNSIGNED_SHORT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, dsDepthMap);
+	glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_R16, texWidth, texHeight, dsDepthMapLayers);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	
 
 	quad = new Quad();
+	averageFramesShader = new Shader("dsAverageFrames");
 	fillShader = new Shader("dsFill");
 	medianShader = new Shader("dsMedian");
 	positionShader = new Shader("dsPosition");
@@ -272,11 +267,15 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 
 void DSensor::recompileShaders()
 {
+	averageFramesShader->recompile();
+	averageFramesShader->apply();
+	glUniform1i(glGetUniformLocation(averageFramesShader->getShaderId(), "dsColor"), 0);
+	glUniform1i(glGetUniformLocation(averageFramesShader->getShaderId(), "dsDepth"), 1);
+
 	fillShader->recompile();
 	fillShader->apply();
 	glUniform1i(glGetUniformLocation(fillShader->getShaderId(), "dsColor"), 0);
 	glUniform1i(glGetUniformLocation(fillShader->getShaderId(), "dsDepth"), 1);
-	glUniform1i(glGetUniformLocation(fillShader->getShaderId(), "dsDepthPrev"), 2);
 
 	medianShader->recompile();
 	medianShader->apply();
@@ -344,8 +343,10 @@ void DSensor::update()
 	// Map 11bit depth to 16 bit and copy into 16bit depth buffer
 	if (depthFrame.isValid())
 	{
-		glBindTexture(GL_TEXTURE_2D, dsDepthMapPrev);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RED, GL_UNSIGNED_SHORT, texDepthMap);
+		// Store previous depth frames
+		if (dsDepthMapLayerCounter == dsDepthMapLayers) dsDepthMapLayerCounter = 1;
+		glBindTexture(GL_TEXTURE_2D_ARRAY, dsDepthMap);
+		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, dsDepthMapLayerCounter++, texWidth, texHeight, 1, GL_RED, GL_UNSIGNED_SHORT, texDepthMap);
 
 		memset(texDepthMap, 0, texWidth * texHeight * sizeof(uint16_t));
 
@@ -374,34 +375,32 @@ void DSensor::update()
 			pTexRow += texWidth;
 		}
 
-		glBindTexture(GL_TEXTURE_2D, dsDepthMap);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RED, GL_UNSIGNED_SHORT, texDepthMap);
+		glBindTexture(GL_TEXTURE_2D_ARRAY, dsDepthMap);
+		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, texWidth, texHeight, 1, GL_RED, GL_UNSIGNED_SHORT, texDepthMap);
 	}
 
 	if (depthFrame.isValid())
 	{
-		// 1st Pass, filp kinect y textures, fill holes
+		// Filp kinect y textures, average across frames
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 		glViewport(0, 0, texWidth, texHeight);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		fillShader->apply();
+		averageFramesShader->apply();
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, dsColorMap);
 		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, dsDepthMap);
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, dsDepthMapPrev);
+		glBindTexture(GL_TEXTURE_2D_ARRAY, dsDepthMap);
 
 		quad->draw();
 
-		// Median filter pass
+		// Fill holes pass
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
 		glViewport(0, 0, texWidth, texHeight);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		medianShader->apply();
+		fillShader->apply();
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, outColorMap);
@@ -410,12 +409,12 @@ void DSensor::update()
 
 		quad->draw();
 
-		// Generate position and normal pass
+		// Median filter pass
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 		glViewport(0, 0, texWidth, texHeight);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		positionShader->apply();
+		medianShader->apply();
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, outColorMap2);
@@ -424,21 +423,35 @@ void DSensor::update()
 
 		quad->draw();
 
-		// Blur pass
+		// Generate position and normal pass
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
+		glViewport(0, 0, texWidth, texHeight);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		positionShader->apply();
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, outColorMap);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, outDepthMap);
+
+		quad->draw();
+
+		// Blur pass
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 		glViewport(0, 0, texWidth, texHeight);
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		blurShader->apply();
 
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, outColorMap);
+		glBindTexture(GL_TEXTURE_2D, outColorMap2);
 		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, outDepthMap);
+		glBindTexture(GL_TEXTURE_2D, outDepthMap2);
 		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, outPositionMap);
+		glBindTexture(GL_TEXTURE_2D, outPositionMap2);
 		glActiveTexture(GL_TEXTURE3);
-		glBindTexture(GL_TEXTURE_2D, outNormalMap);
+		glBindTexture(GL_TEXTURE_2D, outNormalMap2);
 
 		quad->draw();
 
@@ -448,22 +461,22 @@ void DSensor::update()
 
 GLuint DSensor::getColorMapId() const
 {
-	return outColorMap2;
+	return outColorMap;
 }
 
 GLuint DSensor::getDepthMapId() const
 {
-	return outDepthMap2;
+	return outDepthMap;
 }
 
 GLuint DSensor::getPositionMapId() const
 {
-	return outPositionMap2;
+	return outPositionMap;
 }
 
 GLuint DSensor::getNormalMapId() const
 {
-	return outNormalMap2;
+	return outNormalMap;
 }
 
 glm::mat4 DSensor::getMatProjection() const
