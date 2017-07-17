@@ -40,6 +40,8 @@ void main()
 	// Depth sensor textures
 	vec4 dscolor = texture(dsColor, TexCoord);
 	float dsdepth = texture(dsDepth, TexCoord).r;
+	
+	// Generate position from depth
 	vec3 dsposition = dsDepthToWorldPosition(dsDepth, TexCoord);
 	
 	// Generate sensor normals

@@ -8,45 +8,79 @@ layout (location = 1) out float dsOutDepth;
 uniform sampler2D dsColor;
 uniform sampler2D dsDepth;
 
-uniform float imgWidth = 640;
-uniform float imgHeight = 480;
-
-vec2 neighborOffsets[4] = vec2[]
-(
-	vec2(1 / imgWidth, 0),
-    vec2(-1 / imgWidth, 0),
-	vec2(0, 1 / imgHeight),
-	vec2(0, -1 / imgHeight)
-);
+vec3 RGBToXYZ(vec3 inColor)
+{
+	mat3 MatToXYZ = mat3(
+		0.4124564, 0.3575761, 0.1804375,
+		0.2126729, 0.7151522, 0.0721750,
+		0.0193339, 0.1191920, 0.9503041);
+	return MatToXYZ * inColor;
+}
 
 void main()
 {
 	// Depth sensor textures
 	vec4 dscolor = texture(dsColor, TexCoord);
-	float dsdepth = texture(dsDepth, TexCoord).r;
+	float dsdepth = textureLod(dsDepth, TexCoord, 0).r;
 	
-	// Fill hole by picking nearest neighbor
-	if (dsdepth < 0.00001)
+	vec2 texelSize = 1.0 / textureSize(dsDepth, 0).xy;
+	
+	
+	// Fill hole by picking nearest neighbor with similar color
+	/*if (dsdepth == 0)
 	{
-		int kernelRadius = 55;
-		float bestDepth = 0;
-		for (int i = 1; i < kernelRadius; i++)
+		int kernelRadius = 5;
+		float bestDepth = 0, minColorDiff = 99999, minDist = 99999;
+		for (int i = -kernelRadius; i <= kernelRadius; i++)
 		{
-			for (int j = 0; j < 4; j++)
+			for (int j = -kernelRadius; j <= kernelRadius; j++)
 			{
-				vec2 offset = i * neighborOffsets[j];
+				vec2 offset = vec2(i, j) * texelSize;
 				float offsetDepth = texture(dsDepth, TexCoord + offset).r;
+				vec3 offsetColor = texture(dsColor, TexCoord + offset).rgb;
 				
-				if (offsetDepth > 0.00001)
+				vec3 colorDiffv = RGBToXYZ(offsetColor) - RGBToXYZ(dscolor.rgb);
+				float colorDiff = dot(colorDiffv, colorDiffv);
+				float dist = dot(vec2(i, j), vec2(i, j));
+				if (offsetDepth > 0 && colorDiff < minColorDiff)
+				//if (offsetDepth > 0 && dist < minDist)
 				{
+					minDist = dist;
+					minColorDiff = colorDiff;
 					bestDepth = offsetDepth;
-					break;
 				}
 			}
-			
-			if (bestDepth != 0) break;
 		}
+		
 		dsdepth = bestDepth;
+	}*/
+	
+	if (dsdepth == 0)
+	{
+		int kernelRadius = 35;
+		float bestDepth = 0, minColorDiff = 99999, minDist = 99999;
+		for (int i = -kernelRadius; i <= kernelRadius; i++)
+		{
+			for (int j = -kernelRadius; j <= kernelRadius; j++)
+			{
+				vec2 offset = vec2(i, j) * texelSize;
+				float offsetDepth = texture(dsDepth, TexCoord + offset).r;
+				vec3 offsetColor = texture(dsColor, TexCoord + offset).rgb;
+				
+				vec3 colorDiffv = RGBToXYZ(offsetColor) - RGBToXYZ(dscolor.rgb);
+				float colorDiff = dot(colorDiffv, colorDiffv);
+				float dist = dot(vec2(i, j), vec2(i, j));
+				//if (offsetDepth > 0 && colorDiff < minColorDiff)
+				if (offsetDepth > 0 && dist < minDist)
+				{
+					minDist = dist;
+					minColorDiff = colorDiff;
+					bestDepth = offsetDepth;
+				}
+			}
+		}
+		
+		//dsdepth = bestDepth;
 	}
 	
 	dsOutColor = dscolor;

@@ -33,9 +33,9 @@ private:
 	GLuint outColorMap, outDepthMap, outPositionMap, outNormalMap;
 	GLuint outColorMap2, outDepthMap2, outPositionMap2, outNormalMap2;
 	Quad* quad;
-	Shader* averageFramesShader;
-	Shader* fillShader;
+	Shader* temporalMedianShader;
 	Shader* medianShader;
+	Shader* fillShader;
 	Shader* positionShader;
 	Shader* blurShader;
 

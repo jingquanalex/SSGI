@@ -4,26 +4,30 @@ in vec2 TexCoord;
 
 layout (location = 0) out vec4 dsOutColor;
 layout (location = 1) out float dsOutDepth;
-layout (location = 2) out vec3 dsOutPosition;
-layout (location = 3) out vec3 dsOutNormal;
 
 uniform sampler2D dsColor;
 uniform sampler2D dsDepth;
-uniform sampler2D dsPosition;
-uniform sampler2D dsNormal;
 
+uniform float sthresh = 0.02;
 uniform float sigma = 1.0;
-uniform float bsigma = 20.9;
-const int msize = 8;
+uniform float bsigma = 0.01;
+uniform float bsigmaJBF = 0.00001;
+const int kernelRadius = 4;
+const int kernelSize = kernelRadius * 2 + 1;
 
-float normpdf(in float x, in float sigma)
+float normpdf(float x, float s)
 {
-	return 0.39894*exp(-0.5*x*x/(sigma*sigma))/sigma;
+	return 0.3989422 * exp(-x * x / (2 * s * s)) / s;
 }
 
-float normpdf3(in vec3 v, in float sigma)
+// ref: https://github.com/tobspr/GLSL-Color-Spaces/blob/master/ColorSpaces.inc.glsl
+vec3 RGBToXYZ(vec3 inColor)
 {
-	return 0.39894*exp(-0.5*dot(v,v)/(sigma*sigma))/sigma;
+	mat3 MatToXYZ = mat3(
+		0.4124564, 0.3575761, 0.1804375,
+		0.2126729, 0.7151522, 0.0721750,
+		0.0193339, 0.1191920, 0.9503041);
+	return MatToXYZ * inColor;
 }
 
 void main()
@@ -31,56 +35,53 @@ void main()
 	// Depth sensor textures
 	vec4 dscolor = texture(dsColor, TexCoord);
 	float dsdepth = texture(dsDepth, TexCoord).r;
-	vec3 dsposition = texture(dsPosition, TexCoord).rgb;
-	vec3 dsnormal = texture(dsNormal, TexCoord).rgb;
+	vec2 texelSize = 1 / vec2(textureSize(dsDepth, 0));
 	
-	// Bilateral filter
-	// https://github.com/mattdesl/lwjgl-basics/wiki/ShaderLesson5
-	const int kSize = (msize - 1) / 2;
-	float kernel[msize];
-	vec3 final_colour = vec3(0.0);
-	
-	//create the 1-D kernel
-	float Z = 0.0;
-	for (int j = 0; j <= kSize; ++j)
+	// Combined bilateral filter
+	float kernel[kernelSize];
+	for (int i = 0; i <= kernelRadius; i++)
 	{
-		kernel[kSize+j] = kernel[kSize-j] = normpdf(float(j), sigma);
+		kernel[kernelRadius + i] = kernel[kernelRadius - i] = normpdf(i, sigma);
 	}
 	
-	vec2 texelSize = 1.0 / vec2(textureSize(dsPosition, 0));
-	vec3 cc;
-	float factor;
-	float bZ = 1.0/normpdf(0.0, bsigma);
-	//read out the texels
-	for (int i=-kSize; i <= kSize; ++i)
+	float accumValueBF = 0, accumValueJBF = 0;
+	float accumWeightBF = 0, accumWeightJBF = 0;
+	vec3 accumColor = vec3(0);
+	float normFactor = 1 / normpdf(0, bsigma);
+	for (int i = -kernelRadius; i <= kernelRadius; i++)
 	{
-		for (int j=-kSize; j <= kSize; ++j)
+		for (int j = -kernelRadius; j <= kernelRadius; j++)
 		{
-			cc = texture(dsNormal, TexCoord + vec2(i, j) * texelSize).rgb;
-			factor = normpdf3(cc-dsnormal, bsigma)*bZ*kernel[kSize+j]*kernel[kSize+i];
-			Z += factor;
-			final_colour += factor*cc;
-
+			float sampleValueD = texture(dsDepth, TexCoord + vec2(i, j) * texelSize).r;
+			float sampleWeightD = normpdf(dsdepth - sampleValueD, bsigma) * normFactor * kernel[kernelRadius + i] * kernel[kernelRadius + j];
+			
+			accumValueBF += sampleValueD * sampleWeightD;
+			accumWeightBF += sampleWeightD;
+			
+			vec3 sampleValueC = texture(dsColor, TexCoord + vec2(i, j) * texelSize).rgb;
+			vec3 colorDiff = RGBToXYZ(dscolor.rgb) - RGBToXYZ(sampleValueC);
+			float sampleWeightC = normpdf(dot(colorDiff, colorDiff), bsigmaJBF) * normFactor * kernel[kernelRadius + i] * kernel[kernelRadius + j];
+			
+			accumValueJBF += sampleValueD * sampleWeightC;
+			accumWeightJBF += sampleWeightC;
+			
+			accumColor += sampleValueC * sampleWeightC;
 		}
 	}
 	
-	dsnormal = final_colour;
+	float BFValue = accumValueBF / accumWeightBF;
+	float JBFValue = accumValueJBF / accumWeightJBF;
+	vec3 colorValue = accumColor / accumWeightJBF;
+	float deltaP = abs(JBFValue - BFValue);
 	
-	/*vec2 texelSize = 1.0 / vec2(textureSize(dsPosition, 0));
-	vec3 result = vec3(0);
-	vec2 hlim = vec2(float(-uBlurSize) * 0.5 + 0.5);
-	for (int i = 0; i < uBlurSize; ++i)
-	{
-		for (int j = 0; j < uBlurSize; ++j)
-		{
-			vec2 offset = (hlim + vec2(i, j)) * texelSize;
-			result += texture(dsNormal, TexCoord + offset).rgb;
-		}
-	}
-	dsnormal = result / (uBlurSize * uBlurSize);*/
+	float inner = 3.1415926 / (2 * sthresh) * deltaP;
+	float CBFValue = (deltaP > sthresh) ? JBFValue : cos(inner) * cos(inner) * BFValue + sin(inner) * sin(inner) * JBFValue;
+	
+	
+	//dscolor = vec4(colorValue, 1);
+	dsdepth = BFValue;
+	
 	
 	dsOutColor = dscolor;
 	dsOutDepth = dsdepth;
-	dsOutPosition = dsposition;
-	dsOutNormal = dsnormal;
 }

@@ -47,11 +47,6 @@ void Shader::recompile()
 	if (shaderId != 0) compileShader(shaderName);
 }
 
-bool Shader::hasError() const
-{
-	return !success;
-}
-
 GLuint Shader::getShaderId() const
 {
 	return shaderId;
@@ -88,9 +83,9 @@ GLuint Shader::compileShader(string name)
 	string vs = readShaderFile(vspath);
 	string fs = readShaderFile(fspath);
 	string gs = readShaderFile(gspath);
-	const char* vertSrc = vs.c_str();
-	const char* fragSrc = fs.c_str();
-	const char* geomSrc = gs.c_str();
+	const GLchar* vertSrc = vs.c_str();
+	const GLchar* fragSrc = fs.c_str();
+	const GLchar* geomSrc = gs.c_str();
 
 	if (vs == "") cout << "Cannot open shader: " << vspath << endl;
 	if (fs == "") cout << "Cannot open shader: " << fspath << endl;
@@ -103,28 +98,34 @@ GLuint Shader::compileShader(string name)
 	glCompileShader(vertShader);
 	glCompileShader(fragShader);
 
-	glGetShaderiv(vertShader, GL_COMPILE_STATUS, &success);
-	if (success == GL_FALSE)
+	glGetShaderiv(vertShader, GL_COMPILE_STATUS, &status);
+	glGetShaderiv(vertShader, GL_INFO_LOG_LENGTH, &logLength);
+	infoLog = vector<GLchar>(logLength);
+	glGetShaderInfoLog(vertShader, logLength, &logLength, &infoLog[0]);
+	if (logLength > 0)
 	{
-		int logLength;
-		glGetShaderiv(vertShader, GL_INFO_LOG_LENGTH, &logLength);
-		vector<char> infoLog(logLength);
-		glGetShaderInfoLog(vertShader, logLength, &logLength, &infoLog[0]);
-		cout << "=== VERTEX SHADER ERROR ===" << endl;
+		cout << "=== VERTEX SHADER LOG ===" << endl;
 		cout << &infoLog[0] << endl;
+	}
+
+	if (status == GL_FALSE)
+	{
 		glDeleteShader(vertShader);
 		return 0;
 	}
 
-	glGetShaderiv(fragShader, GL_COMPILE_STATUS, &success);
-	if (success == GL_FALSE)
+	glGetShaderiv(fragShader, GL_COMPILE_STATUS, &status);
+	glGetShaderiv(fragShader, GL_INFO_LOG_LENGTH, &logLength);
+	infoLog = vector<GLchar>(logLength);
+	glGetShaderInfoLog(fragShader, logLength, &logLength, &infoLog[0]);
+	if (logLength > 0)
 	{
-		int logLength;
-		glGetShaderiv(fragShader, GL_INFO_LOG_LENGTH, &logLength);
-		vector<char> infoLog(logLength);
-		glGetShaderInfoLog(fragShader, logLength, &logLength, &infoLog[0]);
-		cout << "=== FRAGMENT SHADER ERROR ===" << endl;
+		cout << "=== FRAGMENT SHADER LOG ===" << endl;
 		cout << &infoLog[0] << endl;
+	}
+
+	if (status == GL_FALSE)
+	{
 		glDeleteShader(fragShader);
 		return 0;
 	}
@@ -143,15 +144,18 @@ GLuint Shader::compileShader(string name)
 		glShaderSource(geomShader, 1, &geomSrc, NULL);
 		glCompileShader(geomShader);
 
-		glGetShaderiv(geomShader, GL_COMPILE_STATUS, &success);
-		if (success == GL_FALSE)
+		glGetShaderiv(geomShader, GL_COMPILE_STATUS, &status);
+		glGetShaderiv(geomShader, GL_INFO_LOG_LENGTH, &logLength);
+		infoLog = vector<GLchar>(logLength);
+		glGetShaderInfoLog(geomShader, logLength, &logLength, &infoLog[0]);
+		if (logLength > 0)
 		{
-			GLint logLength;
-			glGetShaderiv(geomShader, GL_INFO_LOG_LENGTH, &logLength);
-			vector<char> infoLog(logLength);
-			glGetShaderInfoLog(geomShader, logLength, &logLength, &infoLog[0]);
-			cout << "=== GEOMETRY SHADER ERROR ===" << endl;
+			cout << "=== GEOMETRY SHADER LOG ===" << endl;
 			cout << &infoLog[0] << endl;
+		}
+
+		if (status == GL_FALSE)
+		{
 			glDeleteShader(geomShader);
 			return 0;
 		}
@@ -162,15 +166,18 @@ GLuint Shader::compileShader(string name)
 	glLinkProgram(shaderId);
 
 	// Linking error checking
-	glGetShaderiv(shaderId, GL_LINK_STATUS, &success);
-	if (success == GL_FALSE)
+	glGetShaderiv(shaderId, GL_LINK_STATUS, &status);
+	glGetProgramiv(shaderId, GL_INFO_LOG_LENGTH, &logLength);
+	infoLog = vector<GLchar>(logLength);
+	glGetProgramInfoLog(shaderId, logLength, &logLength, &infoLog[0]);
+	if (logLength > 0)
 	{
-		GLint logLength;
-		glGetProgramiv(shaderId, GL_INFO_LOG_LENGTH, &logLength);
-		vector<char> infoLog(logLength);
-		glGetProgramInfoLog(shaderId, logLength, &logLength, &infoLog[0]);
-		cout << "=== LINKING SHADER ERROR ===" << endl;
+		cout << "=== PROGRAM LINKING LOG ===" << endl;
 		cout << &infoLog[0] << endl;
+	}
+	
+	if (status == GL_FALSE)
+	{
 		glDeleteShader(vertShader);
 		glDeleteShader(fragShader);
 		if (gs != "") glDeleteShader(geomShader);

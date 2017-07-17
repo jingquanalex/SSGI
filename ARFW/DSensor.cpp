@@ -174,9 +174,9 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 	
 
 	quad = new Quad();
-	averageFramesShader = new Shader("dsAverageFrames");
-	fillShader = new Shader("dsFill");
+	temporalMedianShader = new Shader("dsTemporalMedian");
 	medianShader = new Shader("dsMedian");
+	fillShader = new Shader("dsFill");
 	positionShader = new Shader("dsPosition");
 	blurShader = new Shader("dsBlur");
 	recompileShaders();
@@ -267,10 +267,10 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 
 void DSensor::recompileShaders()
 {
-	averageFramesShader->recompile();
-	averageFramesShader->apply();
-	glUniform1i(glGetUniformLocation(averageFramesShader->getShaderId(), "dsColor"), 0);
-	glUniform1i(glGetUniformLocation(averageFramesShader->getShaderId(), "dsDepth"), 1);
+	temporalMedianShader->recompile();
+	temporalMedianShader->apply();
+	glUniform1i(glGetUniformLocation(temporalMedianShader->getShaderId(), "dsColor"), 0);
+	glUniform1i(glGetUniformLocation(temporalMedianShader->getShaderId(), "dsDepth"), 1);
 
 	fillShader->recompile();
 	fillShader->apply();
@@ -282,17 +282,15 @@ void DSensor::recompileShaders()
 	glUniform1i(glGetUniformLocation(medianShader->getShaderId(), "dsColor"), 0);
 	glUniform1i(glGetUniformLocation(medianShader->getShaderId(), "dsDepth"), 1);
 
-	positionShader->recompile();
-	positionShader->apply();
-	glUniform1i(glGetUniformLocation(positionShader->getShaderId(), "dsColor"), 0);
-	glUniform1i(glGetUniformLocation(positionShader->getShaderId(), "dsDepth"), 1);
-
 	blurShader->recompile();
 	blurShader->apply();
 	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "dsColor"), 0);
 	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "dsDepth"), 1);
-	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "dsPosition"), 2);
-	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "dsNormal"), 3);
+
+	positionShader->recompile();
+	positionShader->apply();
+	glUniform1i(glGetUniformLocation(positionShader->getShaderId(), "dsColor"), 0);
+	glUniform1i(glGetUniformLocation(positionShader->getShaderId(), "dsDepth"), 1);
 }
 
 void DSensor::update()
@@ -381,12 +379,13 @@ void DSensor::update()
 
 	if (depthFrame.isValid())
 	{
-		// Filp kinect y textures, average across frames
+		// Filp kinect y textures
+		// Temporal median filter pass
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 		glViewport(0, 0, texWidth, texHeight);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		averageFramesShader->apply();
+		temporalMedianShader->apply();
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, dsColorMap);
@@ -395,26 +394,36 @@ void DSensor::update()
 
 		quad->draw();
 
-		// Fill holes pass
-		glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
-		glViewport(0, 0, texWidth, texHeight);
-		glClear(GL_COLOR_BUFFER_BIT);
+		// Fill holes passes
+		GLuint currFbo = fbo2;
+		GLuint currColorMap = outColorMap;
+		GLuint currDepthMap = outDepthMap;
+		for (int i = 0; i < 3; i++)
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, currFbo);
+			glViewport(0, 0, texWidth, texHeight);
+			glClear(GL_COLOR_BUFFER_BIT);
 
-		fillShader->apply();
+			medianShader->apply();
 
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, outColorMap);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, outDepthMap);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, currColorMap);
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, currDepthMap);
 
-		quad->draw();
+			quad->draw();
 
-		// Median filter pass
+			currFbo = currFbo == fbo2 ? fbo : fbo2;
+			currColorMap = currColorMap == outColorMap ? outColorMap2 : outColorMap;
+			currDepthMap = currDepthMap == outDepthMap ? outDepthMap2 : outDepthMap;
+		}
+
+		// Bilateral filter pass
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 		glViewport(0, 0, texWidth, texHeight);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		medianShader->apply();
+		blurShader->apply();
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, outColorMap2);
@@ -437,23 +446,7 @@ void DSensor::update()
 
 		quad->draw();
 
-		// Blur pass
-		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-		glViewport(0, 0, texWidth, texHeight);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		blurShader->apply();
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, outColorMap2);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, outDepthMap2);
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, outPositionMap2);
-		glActiveTexture(GL_TEXTURE3);
-		glBindTexture(GL_TEXTURE_2D, outNormalMap2);
-
-		quad->draw();
+		
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
@@ -461,22 +454,22 @@ void DSensor::update()
 
 GLuint DSensor::getColorMapId() const
 {
-	return outColorMap;
+	return outColorMap2;
 }
 
 GLuint DSensor::getDepthMapId() const
 {
-	return outDepthMap;
+	return outDepthMap2;
 }
 
 GLuint DSensor::getPositionMapId() const
 {
-	return outPositionMap;
+	return outPositionMap2;
 }
 
 GLuint DSensor::getNormalMapId() const
 {
-	return outNormalMap;
+	return outNormalMap2;
 }
 
 glm::mat4 DSensor::getMatProjection() const
