@@ -2,7 +2,7 @@
 
 in vec2 TexCoord;
 
-out vec4 outColor;
+layout (location = 0) out vec4 outColor;
 
 layout (std140, binding = 9) uniform MatCam
 {
@@ -17,27 +17,12 @@ layout (std140, binding = 9) uniform MatCam
 uniform sampler2D gPosition;
 uniform sampler2D gNormal;
 uniform sampler2D gColor;
-uniform sampler2D gDepth;
+uniform sampler2D aoMap;
 uniform sampler2D dsColor;
 uniform sampler2D dsDepth;
 uniform samplerCube irradianceMap;
 uniform samplerCube prefilterMap;
 uniform sampler2D brdfLUT;
-uniform float screenWidth;
-uniform float screenHeight;
-
-// Display mode:
-// 1 - Full composite
-// 2 - Color only
-// 3 - SSAO only
-uniform int displayMode = 1;
-
-// SSAO variables
-const int kernelSize = 64;
-uniform float kernelRadius = 0.35;
-uniform float sampleBias = 0.005;
-uniform sampler2D texNoise;
-uniform vec3 samples[kernelSize];
 
 // PBR variables
 uniform vec3 cameraPosition;
@@ -45,8 +30,14 @@ uniform vec3 lightPosition;
 uniform vec3 lightColor;
 uniform float metallic;
 uniform float roughness;
+const float pi = 3.1415926;
 
-const float PI = 3.14159265359;
+// Display mode:
+// 1 - Full composite
+// 2 - Color only
+// 3 - SSAO only
+uniform int displayMode = 1;
+
 
 // Helper functions
 
@@ -82,7 +73,7 @@ float DistributionGGX(vec3 N, vec3 H, float roughness)
 
     float nom = a2;
     float denom = (NdotH2 * (a2 - 1.0) + 1.0);
-    denom = PI * denom * denom;
+    denom = pi * denom * denom;
 
     return nom / denom;
 }
@@ -121,7 +112,6 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
 vec3 render(vec3 P, vec3 N, vec4 inColor, float ao)
 {
 	vec3 albedo = pow(inColor.rgb, vec3(2.2));
-	if (albedo == vec3(0)) albedo = vec3(1); // for no textures
 	
 	vec3 V = normalize(cameraPosition - P);
 	//vec3 V = normalize(-P);
@@ -167,7 +157,7 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, float ao)
         float NdotL = max(dot(N, L), 0.0);        
 
         // add to outgoing radiance Lo
-        Lo += (kD * albedo / PI + specular) * radiance * NdotL; // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
+        Lo += (kD * albedo / pi + specular) * radiance * NdotL; // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
     }
 	
 	// ambient lighting (we now use IBL as the ambient term)
@@ -195,13 +185,6 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, float ao)
     // gamma correct
     color = pow(color, vec3(1.0/2.2));
 	
-	// Mix shade on kinect outputs
-	/*if (inColor.a < 1.0 || P.rgb == vec3(0.2))
-	{
-		//if (inColor.a == vec3(0)) ao = 1;
-		color = vec3(ao);
-	}*/
-	
 	return vec3(color);
 }
 
@@ -209,7 +192,7 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, float ao)
 
 void main()
 {
-	float depth = texture(gDepth, TexCoord).r;
+	//float depth = texture(gDepth, TexCoord).r;
 	vec3 position = texture(gPosition, TexCoord).xyz;
 	vec3 positionWorld = (viewInverse * vec4(position, 1)).xyz;
     vec3 normal = texture(gNormal, TexCoord).xyz;
@@ -222,41 +205,13 @@ void main()
 	// Depth sensor outputs
 	vec4 dscolor = texture(dsColor, TexCoord);
 	float dsdepth = texture(dsDepth, TexCoord).r;
-	vec3 dsposition = dsDepthToWorldPosition(dsDepth, TexCoord);
 	
 	
 	
-	
-	// SSAO occlusion
-	vec2 noiseScale = vec2(screenWidth / 1, screenHeight / 1);
-	//vec2 noiseScale = vec2(screenWidth / 4, screenHeight / 4);
-	vec3 randomVec = texture(texNoise, TexCoord * noiseScale).xyz;
-	vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
-	vec3 bitangent = cross(normal, tangent);
-	mat3 TBN = mat3(tangent, bitangent, normal);
-	
-	// Transform samples from tangent to view space
-	float occlusion = 0.0;
-	for(int i = 0; i < kernelSize; ++i)
-	{
-		vec3 fsample = TBN * samples[i];
-		//vec3 fsample = samples[i];
-		fsample = position + fsample * kernelRadius;
-		
-		// view space offset vectors to window space
-        vec4 offset = kinectProjection * vec4(fsample, 1.0);
-        offset.xyz /= offset.w;
-        offset.xyz = offset.xyz * 0.5 + 0.5;
-		
-		float sampleDepth = texture(gPosition, offset.xy).z;
-		float rangeCheck = smoothstep(0.0, 1.0, kernelRadius / abs(position.z - sampleDepth));
-		occlusion += (sampleDepth >= fsample.z + sampleBias ? 1.0 : 0.0) * rangeCheck;
-	}
-	occlusion = 1.0 - (occlusion / kernelSize);
-	
-	vec4 finalColor = vec4(0, 0, 0, 1);
-	finalColor.rgb = render(positionWorld, normalWorld, color, occlusion);
-	
+	vec4 finalColor = vec4(0);
+	float ao = texture(aoMap, TexCoord).r;
+	finalColor.rgb = render(positionWorld, normalWorld, color, ao);
+	finalColor.a = color.a;
 	
 	
 	switch (displayMode)
@@ -274,11 +229,11 @@ void main()
 			break;
 			
 		case 4:
-			outColor = vec4(vec3(occlusion), 1);
+			outColor = vec4(vec3(ao), 1);
 			break;
 			
 		case 5:
-			outColor = vec4(color);
+			outColor = color;
 			break;
 			
 		case 6:
@@ -290,7 +245,9 @@ void main()
 			break;
 			
 		case 8:
-			outColor = vec4(dsposition, 1);
+			outColor = vec4(vec3(color.a), 1);
 			break;
 	}
+	
+	outColor.a = color.a;
 }

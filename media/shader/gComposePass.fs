@@ -6,49 +6,47 @@ layout (location = 0) out vec3 gPosition;
 layout (location = 1) out vec3 gNormal;
 layout (location = 2) out vec4 gColor;
 
-uniform sampler2D gInPosition;
-uniform sampler2D gInNormal;
-uniform sampler2D gInColor;
+uniform sampler2D inPosition;
+uniform sampler2D inNormal;
+uniform sampler2D inColor;
 uniform sampler2D dsColor;
 uniform sampler2D dsPosition;
 uniform sampler2D dsNormal;
 
-const float imgWidth = 640;
-const float imgHeight = 480;
 
 void main()
 {
-	vec3 position = texture(gInPosition, TexCoord).xyz;
-    vec3 normal = texture(gInNormal, TexCoord).xyz;
-    vec4 color = texture(gInColor, TexCoord);
+	vec3 position = texture(inPosition, TexCoord).xyz;
+    vec3 normal = texture(inNormal, TexCoord).xyz;
+    vec4 color = texture(inColor, TexCoord);
 	
 	// Depth sensor outputs
-	vec4 dscolor = texture(dsColor, TexCoord);
+	vec3 dscolor = texture(dsColor, TexCoord).rgb;
 	vec3 dsposition = texture(dsPosition, TexCoord).rgb;
 	vec3 dsnormal = texture(dsNormal, TexCoord).rgb;
 	
 	// Mix gBuffer and kinect position and color
-	vec3 mixPosition = dsposition;
-	vec4 mixColor = dscolor;
-	vec3 mixNormal = dsnormal;
+	vec3 mixPosition = position;
+	vec3 mixNormal = normal;
+	vec4 mixColor = color;
 	
-	if (dsposition.z < position.z)
-	{
-		mixPosition = position;
-		mixColor.rgb = color.rgb;
-		mixNormal = normal;
-	}
-	
-	if (color.a == 0)
+	if (mixPosition.z < dsposition.z)
 	{
 		mixPosition = dsposition;
-		mixColor.rgb = dscolor.rgb;
 		mixNormal = dsnormal;
+		mixColor = vec4(dscolor, 0);
 	}
 	
-	color = mixColor;
+	if (mixColor.a == 0)
+	{
+		mixPosition = dsposition;
+		mixNormal = dsnormal;
+		mixColor = vec4(dscolor, 0);
+	}
+	
 	position = mixPosition;
 	normal = mixNormal;
+	color = mixColor;
 	
 	gPosition = position;
 	gNormal = normal;

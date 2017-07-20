@@ -16,6 +16,7 @@ void main()
 	vec4 dscolor = texture(dsColor, dsTexCoord);
 	float dsdepth = texture(dsDepth, vec3(dsTexCoord, 0)).r;
 	
+	
 	vec2 texelSize = 1.0 / textureSize(dsDepth, 0).xy;
 	int textureLayers = textureSize(dsDepth, 0).z;
 	int kernelRadius = 1;
@@ -70,6 +71,7 @@ void main()
 		
 		dsdepth = bestDepth;
 	}
+	
 	
 	dsOutColor = dscolor;
 	dsOutDepth = dsdepth;

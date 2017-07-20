@@ -19,14 +19,14 @@ Scene::~Scene()
 	if (lightingPassShader != nullptr) delete lightingPassShader;
 	if (quad != nullptr) delete quad;
 	if (sponza != nullptr) delete sponza;
-	if (ssao != nullptr) delete ssao;
 }
 
 void Scene::recompileShaders()
 {
 	sensor->recompileShaders();
 	gPassShader->recompile();
-	gBlendPassShader->recompile();
+	gComposePassShader->recompile();
+	ssao->recompileShader();
 	lightingPassShader->recompile();
 	compositeShader->recompile();
 	pointCloud->recompileShader();
@@ -40,31 +40,29 @@ void Scene::initializeShaders()
 	glUniform1i(glGetUniformLocation(gPassShader->getShaderId(), "normal1"), 1);
 	glUniform1i(glGetUniformLocation(gPassShader->getShaderId(), "specular1"), 2);
 
-	gBlendPassShader->apply();
-	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "gInPosition"), 0);
-	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "gInNormal"), 1);
-	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "gInColor"), 2);
-	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "dsColor"), 3);
-	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "dsPosition"), 4);
-	glUniform1i(glGetUniformLocation(gBlendPassShader->getShaderId(), "dsNormal"), 5);
+	gComposePassShader->apply();
+	glUniform1i(glGetUniformLocation(gComposePassShader->getShaderId(), "inPosition"), 0);
+	glUniform1i(glGetUniformLocation(gComposePassShader->getShaderId(), "inNormal"), 1);
+	glUniform1i(glGetUniformLocation(gComposePassShader->getShaderId(), "inColor"), 2);
+	glUniform1i(glGetUniformLocation(gComposePassShader->getShaderId(), "dsColor"), 3);
+	glUniform1i(glGetUniformLocation(gComposePassShader->getShaderId(), "dsPosition"), 4);
+	glUniform1i(glGetUniformLocation(gComposePassShader->getShaderId(), "dsNormal"), 5);
 
 	lightingPassShader->apply();
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gPosition"), 0);
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gNormal"), 1);
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gColor"), 2);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gDepth"), 3);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "texNoise"), 4);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "dsColor"), 5);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "dsDepth"), 6);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "irradianceMap"), 7);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "prefilterMap"), 8);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "brdfLUT"), 9);
-	glUniform3fv(glGetUniformLocation(lightingPassShader->getShaderId(), "samples"), 64, value_ptr(ssao->getKernel()[0]));
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "aoMap"), 3);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "dsColor"), 4);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "dsDepth"), 5);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "irradianceMap"), 6);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "prefilterMap"), 7);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "brdfLUT"), 8);
 
 	compositeShader->apply();
 	glUniform1i(glGetUniformLocation(compositeShader->getShaderId(), "fullScene"), 0);
-	glUniform1i(glGetUniformLocation(compositeShader->getShaderId(), "planeScene"), 1);
+	glUniform1i(glGetUniformLocation(compositeShader->getShaderId(), "backScene"), 1);
 	glUniform1i(glGetUniformLocation(compositeShader->getShaderId(), "dsColor"), 2);
 }
 
@@ -80,9 +78,9 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	camera->setDirection(vec3(0, 0, -1));
 	gPassShader = new Shader("gPass");
 	lightingPassShader = new Shader("lightingPass");
-	gBlendPassShader = new Shader("gBlendPass");
+	gComposePassShader = new Shader("gComposePass");
 
-	ssao = new SSAO();
+	ssao = new SSAO(g_windowWidth, g_windowHeight);
 	quad = new Quad();
 	plane = new Object();
 	plane->setGPassShaderId(gPassShader->getShaderId());
@@ -98,7 +96,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	sponza->load("dragon.obj");
 	//sponza->load("sibenik/sibenik.obj");
 	//sponza->load("sponza/sponza.obj");
-	texMask = Image::loadTexture(g_ExePath + "../../media/diff.png");
+	texWhite = Image::loadTexture(g_ExePath + "../../media/white.png");
 
 	// Initialize depth sensor
 	sensor = new DSensor();
@@ -134,8 +132,12 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	gui->addVariable("Metallic", metallic);
 
 	gui->addGroup("SSAO");
-	gui->addVariable("ssaoKernelRadius", ssaoKernelRadius);
-	gui->addVariable("ssaoSampleBias", ssaoSampleBias);
+	gui->addVariable<float>("ssaoKernelRadius",
+		[&](const float &value) { ssao->setKernelRadius(value); },
+		[&]() { return ssao->getKernelRadius(); });
+	gui->addVariable<float>("ssaoSampleBias",
+		[&](const float &value) { ssao->setSampleBias(value); },
+		[&]() { return ssao->getSampleBias(); });
 
 	guiScreen->setVisible(true);
 	guiScreen->performLayout();
@@ -166,8 +168,8 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	glGenTextures(1, &gPosition);
 	glBindTexture(GL_TEXTURE_2D, gPosition);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
@@ -175,8 +177,8 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	glGenTextures(1, &gNormal);
 	glBindTexture(GL_TEXTURE_2D, gNormal);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
@@ -184,8 +186,8 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	glGenTextures(1, &gColor);
 	glBindTexture(GL_TEXTURE_2D, gColor);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gColor, 0);
@@ -193,8 +195,8 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	glGenTextures(1, &gDepth);
 	glBindTexture(GL_TEXTURE_2D, gDepth);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, bufferWidth, bufferHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gDepth, 0);
@@ -206,32 +208,32 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	glGenFramebuffers(1, &gBlendBuffer);
 	glBindFramebuffer(GL_FRAMEBUFFER, gBlendBuffer);
 
-	glGenTextures(1, &gBlendPosition);
-	glBindTexture(GL_TEXTURE_2D, gBlendPosition);
+	glGenTextures(1, &gComposedPosition);
+	glBindTexture(GL_TEXTURE_2D, gComposedPosition);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gBlendPosition, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gComposedPosition, 0);
 
-	glGenTextures(1, &gBlendNormal);
-	glBindTexture(GL_TEXTURE_2D, gBlendNormal);
+	glGenTextures(1, &gComposedNormal);
+	glBindTexture(GL_TEXTURE_2D, gComposedNormal);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gBlendNormal, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gComposedNormal, 0);
 
-	glGenTextures(1, &gBlendColor);
-	glBindTexture(GL_TEXTURE_2D, gBlendColor);
+	glGenTextures(1, &gComposedColor);
+	glBindTexture(GL_TEXTURE_2D, gComposedColor);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gBlendColor, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gComposedColor, 0);
 
 	glDrawBuffers(3, attachments);
 
@@ -239,25 +241,20 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	compositeShader = new Shader("composite");
 
 	glGenFramebuffers(1, &captureFBO);
-	glGenRenderbuffers(1, &captureRBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-	glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, bufferWidth, bufferHeight);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
 
 	glGenTextures(1, &cFullScene);
 	glBindTexture(GL_TEXTURE_2D, cFullScene);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-	glGenTextures(1, &cPlaneScene);
-	glBindTexture(GL_TEXTURE_2D, cPlaneScene);
+	glGenTextures(1, &cBackScene);
+	glBindTexture(GL_TEXTURE_2D, cBackScene);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	
@@ -288,13 +285,7 @@ void Scene::update()
 	float frameTime = (float)(currentTime - previousTime);
 	previousTime = currentTime;
 
-
 	lightingPassShader->apply();
-	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "screenWidth"), (float)g_windowWidth);
-	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "screenHeight"), (float)g_windowHeight);
-	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "kernelRadius"), ssaoKernelRadius);
-	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "sampleBias"), ssaoSampleBias);
-
 	glUniform3fv(glGetUniformLocation(lightingPassShader->getShaderId(), "cameraPosition"), 1, value_ptr(camera->getPosition()));
 	glUniform3fv(glGetUniformLocation(lightingPassShader->getShaderId(), "lightPosition"), 1, value_ptr(lightPosition));
 	glUniform3fv(glGetUniformLocation(lightingPassShader->getShaderId(), "lightColor"), 1, value_ptr(vec3(lightColor.r(), lightColor.g(), lightColor.b())));
@@ -325,22 +316,22 @@ void Scene::render()
 	glViewport(0, 0, bufferWidth, bufferHeight);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	pointCloud->draw();
+	//pointCloud->draw();
 	
 	gPassShader->apply();
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, texMask);
+	glBindTexture(GL_TEXTURE_2D, texWhite);
 
-	sponza->draw();
+	sponza->drawMeshOnly();
 	//plane->drawMeshOnly();
 
-	// Blend G-Buffer and kinect buffers
+	// Combine G-Buffer and kinect buffers
 	glBindFramebuffer(GL_FRAMEBUFFER, gBlendBuffer);
 	glViewport(0, 0, bufferWidth, bufferHeight);
-	glClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	gBlendPassShader->apply();
+	gComposePassShader->apply();
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, gPosition);
@@ -357,10 +348,11 @@ void Scene::render()
 
 	quad->draw();
 
+	ssao->draw(gComposedPosition, gComposedNormal);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	//glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-	//glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cFullScene, 0);
+	// draw to buffer for differential rendering
+	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cFullScene, 0);
 
 	// Lighting pass
 	glViewport(0, 0, g_windowWidth, g_windowHeight);
@@ -369,44 +361,33 @@ void Scene::render()
 	lightingPassShader->apply();
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gBlendPosition);
+	glBindTexture(GL_TEXTURE_2D, gComposedPosition);
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, gBlendNormal);
+	glBindTexture(GL_TEXTURE_2D, gComposedNormal);
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, gBlendColor);
+	glBindTexture(GL_TEXTURE_2D, gComposedColor);
 	glActiveTexture(GL_TEXTURE3);
-	glBindTexture(GL_TEXTURE_2D, gDepth);
-	glActiveTexture(GL_TEXTURE4);
-	glBindTexture(GL_TEXTURE_2D, ssao->getNoiseTexId());
+	glBindTexture(GL_TEXTURE_2D, ssao->getTextureId());
 
-	glActiveTexture(GL_TEXTURE5);
+	glActiveTexture(GL_TEXTURE4);
 	glBindTexture(GL_TEXTURE_2D, sensor->getColorMapId());
-	glActiveTexture(GL_TEXTURE6);
+	glActiveTexture(GL_TEXTURE5);
 	glBindTexture(GL_TEXTURE_2D, sensor->getDepthMapId());
 
-	glActiveTexture(GL_TEXTURE7);
+	glActiveTexture(GL_TEXTURE6);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
-	glActiveTexture(GL_TEXTURE8);
+	glActiveTexture(GL_TEXTURE7);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
-	glActiveTexture(GL_TEXTURE9);
+	glActiveTexture(GL_TEXTURE8);
 	glBindTexture(GL_TEXTURE_2D, brdfLUT);
 
 	quad->draw();
 
-	// 2nd render planescene
-	// G-Buffer pass
-	/*glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-	glViewport(0, 0, bufferWidth, bufferHeight);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	ssao->draw(sensor->getPositionMapId(), sensor->getNormalMapId());
 
-	gPassShader->apply();
-	//sponza->draw();
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, texMask);
-	plane->drawMeshOnly();
-
+	// Differential rendering, masked object scene
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cPlaneScene, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cBackScene, 0);
 
 	// Lighting pass
 	glViewport(0, 0, g_windowWidth, g_windowHeight);
@@ -415,26 +396,24 @@ void Scene::render()
 	lightingPassShader->apply();
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gPosition);
+	glBindTexture(GL_TEXTURE_2D, sensor->getPositionMapId());
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, gNormal);
+	glBindTexture(GL_TEXTURE_2D, sensor->getNormalMapId());
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, gColor);
-	glActiveTexture(GL_TEXTURE3);
-	glBindTexture(GL_TEXTURE_2D, gDepth);
-	glActiveTexture(GL_TEXTURE4);
-	glBindTexture(GL_TEXTURE_2D, ssao->getNoiseTexId());
-
-	glActiveTexture(GL_TEXTURE5);
 	glBindTexture(GL_TEXTURE_2D, sensor->getColorMapId());
-	glActiveTexture(GL_TEXTURE6);
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, ssao->getTextureId());
+
+	glActiveTexture(GL_TEXTURE4);
+	glBindTexture(GL_TEXTURE_2D, sensor->getColorMapId());
+	glActiveTexture(GL_TEXTURE5);
 	glBindTexture(GL_TEXTURE_2D, sensor->getDepthMapId());
 
-	glActiveTexture(GL_TEXTURE7);
+	glActiveTexture(GL_TEXTURE6);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
-	glActiveTexture(GL_TEXTURE8);
+	glActiveTexture(GL_TEXTURE7);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
-	glActiveTexture(GL_TEXTURE9);
+	glActiveTexture(GL_TEXTURE8);
 	glBindTexture(GL_TEXTURE_2D, brdfLUT);
 
 	quad->draw();
@@ -449,16 +428,16 @@ void Scene::render()
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, cFullScene);
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, cPlaneScene);
+	glBindTexture(GL_TEXTURE_2D, cBackScene);
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, sensor->getColorMapId());
 
-	quad->draw();*/
+	quad->draw();
 
 	// Draw GUI
 	guiScreen->drawWidgets();
-	glEnable(GL_DEPTH_TEST);
-	glDisable(GL_BLEND); //fucks up pos and norm gtex
+	glEnable(GL_DEPTH_TEST); // Reset changed states
+	glDisable(GL_BLEND);
 }
 
 void Scene::keyCallback(int key, int action)

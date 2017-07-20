@@ -5,33 +5,26 @@ in vec2 TexCoord;
 out vec4 outColor;
 
 uniform sampler2D fullScene;
-uniform sampler2D planeScene;
+uniform sampler2D backScene;
 uniform sampler2D dsColor;
 
 void main()
 {
-	//outColor = vec4(0.9, 0.7, 0.2, 1.0);
 	vec4 fullcolor = texture(fullScene, TexCoord);
-	vec4 planecolor = texture(planeScene, TexCoord);
-	vec2 dsTexCoord = vec2(TexCoord.x, 1.0 - TexCoord.y);
-	vec4 dscolor = texture(dsColor, dsTexCoord);
+	vec4 backcolor = texture(backScene, TexCoord);
+	vec3 dscolor = texture(dsColor, TexCoord).rgb;
 	
-	vec4 finalcolor = dscolor;
-	
-	if (planecolor.a == 0)
-	{
-		planecolor.rgb = vec3(0);
-	}
+	vec4 finalcolor = vec4(dscolor, 1);
 	
 	if (fullcolor.a == 1.0)
 	{
 		finalcolor.rgb = fullcolor.rgb;
 	}
-	
-	if (fullcolor.a > 0.0 && fullcolor.a < 1.0)
+	else
 	{
-		finalcolor.rgb = dscolor.rgb - abs(fullcolor.rgb - planecolor.rgb) * 2;
+		vec3 fullcolorMasked = fullcolor.rgb * (1 - fullcolor.a);
+		finalcolor.rgb = dscolor - abs(fullcolorMasked - backcolor.rgb);
 	}
 	
-	outColor = finalcolor;
+	outColor = vec4(finalcolor);
 }

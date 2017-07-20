@@ -3,9 +3,11 @@
 using namespace std;
 using namespace glm;
 
-SSAO::SSAO()
+SSAO::SSAO(int width, int height)
 {
-	Initialize();
+	texWidth = width;
+	texHeight = height;
+	initialize();
 }
 
 SSAO::~SSAO()
@@ -13,7 +15,7 @@ SSAO::~SSAO()
 
 }
 
-void SSAO::Initialize()
+void SSAO::initialize()
 {
 	kernel.clear();
 
@@ -35,7 +37,7 @@ void SSAO::Initialize()
 	// Generate 4x4 noise texture
 	vector<vec3> ssaoNoise;
 
-	for (int i = 0; i < 16; i++)
+	for (int i = 0; i < (int)(texWidth * texHeight); i++)
 	{
 		vec3 noise(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, 0.0f);
 		ssaoNoise.push_back(noise);
@@ -43,20 +45,84 @@ void SSAO::Initialize()
 
 	glGenTextures(1, &noiseTexId);
 	glBindTexture(GL_TEXTURE_2D, noiseTexId);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, 4, 4, 0, GL_RGB, GL_FLOAT, &ssaoNoise[0]);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, &ssaoNoise[0]);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glBindTexture(GL_TEXTURE_2D, 0);
+
+	quad = new Quad();
+	shader = new Shader("ssao");
+	recompileShader();
+
+	glGenFramebuffers(1, &fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+	glGenTextures(1, &textureId);
+	glBindTexture(GL_TEXTURE_2D, textureId);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, texWidth, texHeight, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureId, 0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-std::vector<glm::vec3> SSAO::getKernel() const
+void SSAO::recompileShader()
 {
-	return kernel;
+	shader->apply();
+	glUniform1i(glGetUniformLocation(shader->getShaderId(), "gPosition"), 0);
+	glUniform1i(glGetUniformLocation(shader->getShaderId(), "gNormal"), 1);
+	glUniform1i(glGetUniformLocation(shader->getShaderId(), "inNoise"), 2);
+	glUniform3fv(glGetUniformLocation(shader->getShaderId(), "inSamples"), 64, value_ptr(kernel[0]));
 }
 
-GLuint SSAO::getNoiseTexId() const
+void SSAO::draw(GLuint positionMapId, GLuint normalMapId)
 {
-	return noiseTexId;
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	glViewport(0, 0, texWidth, texHeight);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	shader->apply();
+	glUniform1f(glGetUniformLocation(shader->getShaderId(), "kernelRadius"), kernelRadius);
+	glUniform1f(glGetUniformLocation(shader->getShaderId(), "sampleBias"), sampleBias);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, positionMapId);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, normalMapId);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, noiseTexId);
+
+	quad->draw();
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+GLuint SSAO::getTextureId() const
+{
+	return textureId;
+}
+
+float SSAO::getKernelRadius() const
+{
+	return kernelRadius;
+}
+
+float SSAO::getSampleBias() const
+{
+	return sampleBias;
+}
+
+void SSAO::setKernelRadius(float value)
+{
+	kernelRadius = value;
+}
+
+void SSAO::setSampleBias(float value)
+{
+	sampleBias = value;
 }

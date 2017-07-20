@@ -24,20 +24,18 @@ private:
 
 	GLuint gBuffer, gBlendBuffer;
 	GLuint gPosition, gNormal, gColor, gDepth;
-	GLuint gBlendPosition, gBlendNormal, gBlendColor, gBlendDepth;
+	GLuint gComposedPosition, gComposedNormal, gComposedColor, gComposedDepth;
 	Shader* gPassShader = nullptr;
 	Shader* lightingPassShader = nullptr;
-	Shader* gBlendPassShader = nullptr;
+	Shader* gComposePassShader = nullptr;
 	SSAO* ssao = nullptr;
-	float ssaoKernelRadius = 0.5f;
-	float ssaoSampleBias = 0.0f;
 	int bufferWidth, bufferHeight;
 
 	CameraFPS* camera = nullptr;
 	Quad* quad = nullptr;
 	Object* sponza = nullptr;
 	Object* plane;
-	GLuint texMask;
+	GLuint texWhite;
 
 	GLuint uniform_CamMat;
 	int renderMode = 1;
@@ -61,9 +59,8 @@ private:
 
 	Shader* compositeShader;
 	GLuint captureFBO;
-	GLuint captureRBO;
 	GLuint cFullScene;
-	GLuint cPlaneScene;
+	GLuint cBackScene;
 
 	PointCloud* pointCloud;
 

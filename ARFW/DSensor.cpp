@@ -267,6 +267,8 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 
 void DSensor::recompileShaders()
 {
+	if (hasError) return;
+
 	temporalMedianShader->recompile();
 	temporalMedianShader->apply();
 	glUniform1i(glGetUniformLocation(temporalMedianShader->getShaderId(), "dsColor"), 0);
@@ -383,7 +385,7 @@ void DSensor::update()
 		// Temporal median filter pass
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 		glViewport(0, 0, texWidth, texHeight);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		temporalMedianShader->apply();
 
@@ -402,7 +404,7 @@ void DSensor::update()
 		{
 			glBindFramebuffer(GL_FRAMEBUFFER, currFbo);
 			glViewport(0, 0, texWidth, texHeight);
-			glClear(GL_COLOR_BUFFER_BIT);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 			medianShader->apply();
 
@@ -421,7 +423,7 @@ void DSensor::update()
 		// Bilateral filter pass
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 		glViewport(0, 0, texWidth, texHeight);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		blurShader->apply();
 
@@ -435,7 +437,7 @@ void DSensor::update()
 		// Generate position and normal pass
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
 		glViewport(0, 0, texWidth, texHeight);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		positionShader->apply();
 
