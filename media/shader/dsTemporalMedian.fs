@@ -8,6 +8,8 @@ layout (location = 1) out float dsOutDepth;
 uniform sampler2D dsColor;
 uniform sampler2DArray dsDepth;
 
+uniform int kernelRadius = 1;
+uniform int frameLayers;
 
 void main()
 {
@@ -16,11 +18,8 @@ void main()
 	vec4 dscolor = texture(dsColor, dsTexCoord);
 	float dsdepth = texture(dsDepth, vec3(dsTexCoord, 0)).r;
 	
-	
 	vec2 texelSize = 1.0 / textureSize(dsDepth, 0).xy;
-	int textureLayers = textureSize(dsDepth, 0).z;
-	int kernelRadius = 1;
-	int kernelSize = (kernelRadius * 2 + 1) * (kernelRadius * 2 + 1) * textureLayers;
+	//frameLayers = textureSize(dsDepth, 0).z;
 	
 	
 	// Temporal median filter
@@ -33,7 +32,7 @@ void main()
 		{
 			for (int j = -kernelRadius; j <= kernelRadius; j++)
 			{
-				for (int k = 0; k < textureLayers; k++)
+				for (int k = 0; k < frameLayers; k++)
 				{
 					vec3 offset = vec3(dsTexCoord + vec2(i, j) * texelSize, k);
 					float offsetDepth = texture(dsDepth, offset).r;
@@ -54,7 +53,7 @@ void main()
 		{
 			for (int j = -kernelRadius; j <= kernelRadius; j++)
 			{
-				for (int k = 0; k < textureLayers; k++)
+				for (int k = 0; k < frameLayers; k++)
 				{
 					vec3 offset = vec3(dsTexCoord + vec2(i, j) * texelSize, k);
 					float offsetDepth = texture(dsDepth, offset).r;

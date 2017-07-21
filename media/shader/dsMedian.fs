@@ -8,6 +8,8 @@ layout (location = 1) out float dsOutDepth;
 uniform sampler2D dsColor;
 uniform sampler2D dsDepth;
 
+uniform int kernelRadius = 10;
+
 /*vec3 RGBToXYZ(vec3 inColor)
 {
 	mat3 MatToXYZ = mat3(
@@ -20,12 +22,12 @@ uniform sampler2D dsDepth;
 
 void main()
 {
-	// Depth sensor textures (y is flipped)
+	// Depth sensor textures
 	vec4 dscolor = texture(dsColor, TexCoord);
 	float dsdepth = texture(dsDepth, TexCoord).r;
 	
 	vec2 texelSize = 1.0 / textureSize(dsDepth, 0).xy;
-	int kernelRadius = 10;
+	
 	
 	// Median filter (fill holes only)
 	if (dsdepth == 0)

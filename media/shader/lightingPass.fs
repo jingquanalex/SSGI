@@ -177,8 +177,8 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, float ao)
     vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
 
     vec3 ambient = (kD * diffuse + specular) * ao;
-    
-    vec3 color = ambient + Lo;
+    vec3 color = ambient + Lo * ao;
+    //vec3 color = ambient + Lo;
 
     // HDR tonemapping
     color = color / (color + vec3(1.0));
@@ -211,6 +211,7 @@ void main()
 	vec4 finalColor = vec4(0);
 	float ao = texture(aoMap, TexCoord).r;
 	finalColor.rgb = render(positionWorld, normalWorld, color, ao);
+	//finalColor.rgb = vec3(ao);
 	finalColor.a = color.a;
 	
 	

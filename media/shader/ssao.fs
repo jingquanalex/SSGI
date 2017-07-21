@@ -21,6 +21,8 @@ uniform sampler2D gNormal;
 const int kernelSize = 64;
 uniform float kernelRadius = 0.35;
 uniform float sampleBias = 0.005;
+uniform float intensity = 1.0;
+uniform float power = 1.0;
 uniform sampler2D inNoise;
 uniform vec3 inSamples[kernelSize];
 
@@ -53,7 +55,11 @@ void main()
 		float rangeCheck = smoothstep(0.0, 1.0, kernelRadius / abs(position.z - sampleDepth));
 		occlusion += (sampleDepth >= fsample.z + sampleBias ? 1.0 : 0.0) * rangeCheck;
 	}
-	occlusion = 1.0 - (occlusion / kernelSize);
+	occlusion = occlusion / kernelSize;
+	
+	occlusion = clamp(1 - occlusion * intensity, 0, 1);
+	occlusion = pow(occlusion, power);
+	
 	
 	outColor = occlusion;
 }

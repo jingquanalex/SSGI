@@ -7,6 +7,7 @@ layout (location = 1) out float dsOutDepth;
 layout (location = 2) out vec3 dsOutPosition;
 layout (location = 3) out vec3 dsOutNormal;
 
+
 uniform sampler2D dsColor;
 uniform sampler2D dsDepth;
 

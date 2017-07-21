@@ -21,7 +21,7 @@ private:
 	uint16_t* texDepthMap;
 
 	GLuint dsColorMap, dsDepthMap;
-	int dsDepthMapLayers, dsDepthMapLayerCounter = 1;
+	int dsDepthMapLayerCounter = 1;
 
 	GLuint minNumChunks(GLuint dataSize, GLuint chunkSize);
 	GLuint minChunkSize(GLuint dataSize, GLuint chunkSize);
@@ -35,9 +35,26 @@ private:
 	Quad* quad;
 	Shader* temporalMedianShader;
 	Shader* medianShader;
-	Shader* fillShader;
 	Shader* positionShader;
 	Shader* blurShader;
+
+	int tmfKernelRadius = 1;
+	int tmfFrameLayers = 6;
+	const int tmfMaxFrameLayers = 10;
+
+	int fillKernelRadius = 5;
+	int fillPasses = 9;
+
+	int blurKernelRadius = 4;
+	float blurSigma = 1.0f;
+	float blurBSigma = 0.01f;
+	float blurBSigmaJBF = 0.00001f;
+	float blurSThresh = 0.02f;
+	std::vector<float> blurKernel;
+
+	void computeBlurKernel(int radius);
+
+	std::vector<glm::vec3> customPositions;
 
 public:
 
@@ -48,6 +65,8 @@ public:
 	void recompileShaders();
 	void update();
 	
+	void toggleRendering();
+	std::vector<glm::vec3>* getCustomPositions(int sampleRadius);
 
 	GLuint getColorMapId() const;
 	GLuint getDepthMapId() const;
@@ -55,6 +74,21 @@ public:
 	GLuint getNormalMapId() const;
 	glm::mat4 getMatProjection() const;
 	glm::mat4 getMatProjectionInverse() const;
-	void toggleRendering();
+	
+	int getTMFKernelRadius() const;
+	int getTMFFrameLayers() const;
+	int getFillKernelRaidus() const;
+	int getFillPasses() const;
+	int getBlurKernelRadius() const;
+	float getBlurSigma() const;
+	float getBlurBSigma() const;
+
+	void setTMFKernelRadius(int value);
+	void setTMFFrameLayers(int value);
+	void setFillKernelRaidus(int value);
+	void setFillPasses(int value);
+	void setBlurKernelRadius(int value);
+	void setBlurSigma(float value);
+	void setBlurBSigma(float value);
 
 };

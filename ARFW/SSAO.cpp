@@ -73,6 +73,7 @@ void SSAO::initialize()
 
 void SSAO::recompileShader()
 {
+	shader->recompile();
 	shader->apply();
 	glUniform1i(glGetUniformLocation(shader->getShaderId(), "gPosition"), 0);
 	glUniform1i(glGetUniformLocation(shader->getShaderId(), "gNormal"), 1);
@@ -87,8 +88,6 @@ void SSAO::draw(GLuint positionMapId, GLuint normalMapId)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	shader->apply();
-	glUniform1f(glGetUniformLocation(shader->getShaderId(), "kernelRadius"), kernelRadius);
-	glUniform1f(glGetUniformLocation(shader->getShaderId(), "sampleBias"), sampleBias);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, positionMapId);
@@ -117,12 +116,44 @@ float SSAO::getSampleBias() const
 	return sampleBias;
 }
 
+float SSAO::getIntensity() const
+{
+	return intensity;
+}
+
+float SSAO::getPower() const
+{
+	return power;
+}
+
 void SSAO::setKernelRadius(float value)
 {
 	kernelRadius = value;
+
+	shader->apply();
+	glUniform1f(glGetUniformLocation(shader->getShaderId(), "kernelRadius"), kernelRadius);
 }
 
 void SSAO::setSampleBias(float value)
 {
 	sampleBias = value;
+
+	shader->apply();
+	glUniform1f(glGetUniformLocation(shader->getShaderId(), "sampleBias"), sampleBias);
+}
+
+void SSAO::setIntensity(float value)
+{
+	intensity = value;
+
+	shader->apply();
+	glUniform1f(glGetUniformLocation(shader->getShaderId(), "intensity"), intensity);
+}
+
+void SSAO::setPower(float value)
+{
+	power = value;
+
+	shader->apply();
+	glUniform1f(glGetUniformLocation(shader->getShaderId(), "power"), power);
 }

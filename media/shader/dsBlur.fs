@@ -8,12 +8,13 @@ layout (location = 1) out float dsOutDepth;
 uniform sampler2D dsColor;
 uniform sampler2D dsDepth;
 
-uniform float sthresh = 0.02;
+uniform int kernelRadius = 4;
+//uniform float kernel[64];
+
 uniform float sigma = 1.0;
 uniform float bsigma = 0.01;
 uniform float bsigmaJBF = 0.00001;
-const int kernelRadius = 4;
-const int kernelSize = kernelRadius * 2 + 1;
+uniform float sthresh = 0.02;
 
 float normpdf(float x, float s)
 {
@@ -38,7 +39,7 @@ void main()
 	vec2 texelSize = 1 / vec2(textureSize(dsDepth, 0));
 	
 	// Combined bilateral filter
-	float kernel[kernelSize];
+	float kernel[64];
 	for (int i = 0; i <= kernelRadius; i++)
 	{
 		kernel[kernelRadius + i] = kernel[kernelRadius - i] = normpdf(i, sigma);
@@ -47,7 +48,7 @@ void main()
 	float accumValueBF = 0, accumValueJBF = 0;
 	float accumWeightBF = 0, accumWeightJBF = 0;
 	vec3 accumColor = vec3(0);
-	float normFactor = 1 / normpdf(0, bsigma);
+	float normFactor = 1.0 / normpdf(0, bsigma);
 	for (int i = -kernelRadius; i <= kernelRadius; i++)
 	{
 		for (int j = -kernelRadius; j <= kernelRadius; j++)

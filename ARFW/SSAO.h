@@ -10,8 +10,10 @@ class SSAO
 
 private:
 
-	float kernelRadius = 0.5f;
+	float kernelRadius = 0.1f;
 	float sampleBias = 0.0f;
+	float intensity = 1.0f;
+	float power = 1.0f;
 
 	std::vector<glm::vec3> kernel;
 	GLuint noiseTexId;
@@ -33,9 +35,13 @@ public:
 	GLuint getTextureId() const;
 	float getKernelRadius() const;
 	float getSampleBias() const;
+	float getIntensity() const;
+	float getPower() const;
 
 	void setKernelRadius(float value);
 	void setSampleBias(float value);
+	void setIntensity(float value);
+	void setPower(float value);
 
 
 };

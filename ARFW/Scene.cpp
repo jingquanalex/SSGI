@@ -18,7 +18,7 @@ Scene::~Scene()
 	if (gPassShader != nullptr) delete gPassShader;
 	if (lightingPassShader != nullptr) delete lightingPassShader;
 	if (quad != nullptr) delete quad;
-	if (sponza != nullptr) delete sponza;
+	if (dragon != nullptr) delete dragon;
 }
 
 void Scene::recompileShaders()
@@ -87,20 +87,22 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	plane->setPosition(vec3(0.0f, -0.75f, -4.0f));
 	plane->setScale(vec3(1.0f, 0.1f, 1.0f));
 	plane->load("cube/cube.obj");
-	sponza = new Object();
-	sponza->setGPassShaderId(gPassShader->getShaderId());
-	//sponza->setScale(vec3(0.05f));
-	sponza->setScale(vec3(0.25f));
-	sponza->setPosition(vec3(0, 0, -0.5));
-	sponza->setRotation(vec3(0, 90, 0));
-	sponza->load("dragon.obj");
-	//sponza->load("sibenik/sibenik.obj");
-	//sponza->load("sponza/sponza.obj");
+	dragon = new Object();
+	dragon->setGPassShaderId(gPassShader->getShaderId());
+	//dragon->setScale(vec3(0.05f));
+	dragon->setScale(vec3(0.25f));
+	dragon->setPosition(vec3(0, 0, -0.5));
+	dragon->setRotation(vec3(0, 90, 0));
+	dragon->load("dragon.obj");
+	//dragon->load("sibenik/sibenik.obj");
+	//dragon->load("dragon/dragon.obj");
 	texWhite = Image::loadTexture(g_ExePath + "../../media/white.png");
 
 	// Initialize depth sensor
 	sensor = new DSensor();
 	sensor->initialize(g_windowWidth, g_windowHeight);
+
+	randomFloats = uniform_real_distribution<float>(0.0f, 1.0f);
 
 	pointCloud = new PointCloud(sensor->getColorMapId(), sensor->getDepthMapId());
 
@@ -123,6 +125,13 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 		camera->setTargetPoint(camera->getPosition() + vec3(0, 0, -1));
 	});
 
+	gui->addGroup("Misc");
+	gui->addVariable("dragonNumRadius", dragonNumRadius);
+	gui->addButton("Spawn Dragons", [&]()
+	{
+		spawnDragons(dragonNumRadius);
+	});
+
 	gui->addGroup("Light");
 	gui->addVariable("Position X", lightPosition.x);
 	gui->addVariable("Position Y", lightPosition.y);
@@ -131,13 +140,47 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	gui->addVariable("Roughness", roughness);
 	gui->addVariable("Metallic", metallic);
 
+	gui->addGroup("Kinect depth filters");
+	gui->addGroup("Temporal median filter");
+	gui->addVariable<int>("kernelRadius",
+		[&](const int &value) { sensor->setTMFKernelRadius(value); },
+		[&]() { return sensor->getTMFKernelRadius(); });
+	gui->addVariable<int>("frameLayers (max 10)",
+		[&](const int &value) { sensor->setTMFFrameLayers(value); },
+		[&]() { return sensor->getTMFFrameLayers(); });
+
+	gui->addGroup("Fill holes (median)");
+	gui->addVariable<int>("kernelRadius",
+		[&](const int &value) { sensor->setFillKernelRaidus(value); },
+		[&]() { return sensor->getFillKernelRaidus(); });
+	gui->addVariable<int>("passes (odd value only)",
+		[&](const int &value) { sensor->setFillPasses(value); },
+		[&]() { return sensor->getFillPasses(); });
+
+	gui->addGroup("Bilateral filter");
+	gui->addVariable<int>("kernelRadius",
+		[&](const int &value) { sensor->setBlurKernelRadius(value); },
+		[&]() { return sensor->getBlurKernelRadius(); });
+	gui->addVariable<float>("sigma",
+		[&](const float &value) { sensor->setBlurSigma(value); },
+		[&]() { return sensor->getBlurSigma(); });
+	gui->addVariable<float>("bsigma",
+		[&](const float &value) { sensor->setBlurBSigma(value); },
+		[&]() { return sensor->getBlurBSigma(); });
+
 	gui->addGroup("SSAO");
-	gui->addVariable<float>("ssaoKernelRadius",
+	gui->addVariable<float>("kernelRadius",
 		[&](const float &value) { ssao->setKernelRadius(value); },
 		[&]() { return ssao->getKernelRadius(); });
-	gui->addVariable<float>("ssaoSampleBias",
+	gui->addVariable<float>("sampleBias",
 		[&](const float &value) { ssao->setSampleBias(value); },
 		[&]() { return ssao->getSampleBias(); });
+	gui->addVariable<float>("intensity",
+		[&](const float &value) { ssao->setIntensity(value); },
+		[&]() { return ssao->getIntensity(); });
+	gui->addVariable<float>("power",
+		[&](const float &value) { ssao->setPower(value); },
+		[&]() { return ssao->getPower(); });
 
 	guiScreen->setVisible(true);
 	guiScreen->performLayout();
@@ -304,7 +347,14 @@ void Scene::update()
 	glBufferSubData(GL_UNIFORM_BUFFER, 4 * sizeof(mat4), sizeof(mat4), value_ptr(sensor->getMatProjection()));
 	glBufferSubData(GL_UNIFORM_BUFFER, 5 * sizeof(mat4), sizeof(mat4), value_ptr(sensor->getMatProjectionInverse()));
 
-
+	if (runAfterFramesCounter < runAfterFrames)
+	{
+		runAfterFramesCounter++;
+		if (runAfterFramesCounter == runAfterFrames)
+		{
+			spawnDragons(1);
+		}
+	}
 }
 
 void Scene::render()
@@ -323,8 +373,19 @@ void Scene::render()
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texWhite);
 
-	sponza->drawMeshOnly();
-	//plane->drawMeshOnly();
+	// Draw dragon fest
+	if (customPositions != nullptr)
+	{
+		for (int i = 0; i < customPositions->size(); i++)
+		{
+			if (customPositions->at(i) == glm::vec3(0)) continue;
+
+			dragon->setScale(vec3(0.1f));
+			dragon->setPosition(customPositions->at(i));
+			dragon->setRotation(customRotations.at(i));
+			dragon->drawMeshOnly();
+		}
+	}
 
 	// Combine G-Buffer and kinect buffers
 	glBindFramebuffer(GL_FRAMEBUFFER, gBlendBuffer);
@@ -438,6 +499,16 @@ void Scene::render()
 	guiScreen->drawWidgets();
 	glEnable(GL_DEPTH_TEST); // Reset changed states
 	glDisable(GL_BLEND);
+}
+
+void Scene::spawnDragons(int numRadius)
+{
+	customPositions = sensor->getCustomPositions(numRadius);
+	customRotations.clear();
+	for (int i = 0; i < customPositions->size(); i++)
+	{
+		customRotations.push_back(vec3(randomFloats(generator) * 360, randomFloats(generator) * 360, randomFloats(generator) * 360));
+	}
 }
 
 void Scene::keyCallback(int key, int action)

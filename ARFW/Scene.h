@@ -11,6 +11,7 @@
 #include "PBR.h"
 #include "PointCloud.h"
 
+#include <random>
 #include <chrono>
 #include <thread>
 
@@ -33,9 +34,15 @@ private:
 
 	CameraFPS* camera = nullptr;
 	Quad* quad = nullptr;
-	Object* sponza = nullptr;
+	Object* dragon = nullptr;
 	Object* plane;
 	GLuint texWhite;
+
+	std::uniform_real_distribution<float> randomFloats;
+	std::default_random_engine generator;
+	std::vector<glm::vec3>* customPositions = nullptr;
+	std::vector<glm::vec3> customRotations;
+	int runAfterFrames = 10, runAfterFramesCounter = 0;
 
 	GLuint uniform_CamMat;
 	int renderMode = 1;
@@ -66,6 +73,9 @@ private:
 
 	void recompileShaders();
 	void initializeShaders();
+
+	void spawnDragons(int numRadius);
+	int dragonNumRadius = 1;
 
 public:
 
