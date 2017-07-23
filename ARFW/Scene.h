@@ -36,7 +36,7 @@ private:
 	Quad* quad = nullptr;
 	Object* dragon = nullptr;
 	Object* plane;
-	GLuint texWhite;
+	GLuint texWhite, texRed, texGreen, texBlue;
 
 	std::uniform_real_distribution<float> randomFloats;
 	std::default_random_engine generator;
@@ -53,7 +53,7 @@ private:
 
 	DSensor* sensor = nullptr;
 
-	glm::vec3 lightPosition = glm::vec3(0.0f, 1.5f, 0.0f);
+	glm::vec3 lightPosition = glm::vec3(0.0f, 1111.5f, 0.0f);
 	nanogui::Color lightColor = nanogui::Color(1.00f, 0.48f, 0.49f, 1.0f);
 	float roughness = 0.24f;
 	float metallic = 0.1f;

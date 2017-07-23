@@ -109,7 +109,7 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }   
 
-vec3 render(vec3 P, vec3 N, vec4 inColor, float ao)
+vec3 render(vec3 P, vec3 N, vec4 inColor, vec3 ao)
 {
 	vec3 albedo = pow(inColor.rgb, vec3(2.2));
 	
@@ -177,15 +177,17 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, float ao)
     vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
 
     vec3 ambient = (kD * diffuse + specular) * ao;
-    vec3 color = ambient + Lo * ao;
-    //vec3 color = ambient + Lo;
+    vec3 color = ambient + Lo;
+	
+	//test
+	//color = ao * albedo;
 
     // HDR tonemapping
     color = color / (color + vec3(1.0));
     // gamma correct
     color = pow(color, vec3(1.0/2.2));
 	
-	return vec3(color);
+	return color;
 }
 
 // Main
@@ -209,9 +211,9 @@ void main()
 	
 	
 	vec4 finalColor = vec4(0);
-	float ao = texture(aoMap, TexCoord).r;
+	vec3 ao = texture(aoMap, TexCoord).rgb;
 	finalColor.rgb = render(positionWorld, normalWorld, color, ao);
-	//finalColor.rgb = vec3(ao);
+	//finalColor.rgb = vec3(0.1) * ao;
 	finalColor.a = color.a;
 	
 	
@@ -230,7 +232,7 @@ void main()
 			break;
 			
 		case 4:
-			outColor = vec4(vec3(ao), 1);
+			outColor = vec4(ao, 1);
 			break;
 			
 		case 5:

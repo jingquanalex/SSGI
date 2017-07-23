@@ -2,7 +2,7 @@
 
 in vec2 TexCoord;
 
-layout (location = 0) out float outColor;
+layout (location = 0) out vec3 outColor;
 
 layout (std140, binding = 9) uniform MatCam
 {
@@ -16,6 +16,7 @@ layout (std140, binding = 9) uniform MatCam
 
 uniform sampler2D gPosition;
 uniform sampler2D gNormal;
+uniform sampler2D gColor;
 
 // SSAO variables
 const int kernelSize = 64;
@@ -32,34 +33,48 @@ void main()
 	vec3 position = texture(gPosition, TexCoord).xyz;
     vec3 normal = texture(gNormal, TexCoord).xyz;
 	
-	// SSAO occlusion
 	float occlusion = 0.0;
+	vec3 sumColor = vec3(0);
 	
-	//vec3 randomVec = texture(inNoise, TexCoord).xyz;
-	vec3 randomVec = vec3(1, 0, 0);
+	vec3 randomVec = texture(inNoise, TexCoord).xyz;
+	randomVec = vec3(1, 0, 0);
 	vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
 	vec3 bitangent = cross(normal, tangent);
 	mat3 TBN = mat3(tangent, bitangent, normal);
 	
 	for(int i = 0; i < kernelSize; ++i)
 	{
+		// transform offset vectors from tangent space to view space
 		vec3 fsample = TBN * inSamples[i];
 		fsample = position + fsample * kernelRadius;
 		
-		// view space offset vectors to window space
+		// transform offset vectors from view space to window space
 		vec4 offset = kinectProjection * vec4(fsample, 1.0);
 		offset.xyz /= offset.w;
 		offset.xyz = offset.xyz * 0.5 + 0.5;
 		
 		float sampleDepth = texture(gPosition, offset.xy).z;
-		float rangeCheck = smoothstep(0.0, 1.0, kernelRadius / abs(position.z - sampleDepth));
-		occlusion += (sampleDepth >= fsample.z + sampleBias ? 1.0 : 0.0) * rangeCheck;
+		
+		if (sampleDepth > fsample.z + sampleBias)
+		{
+			vec3 sampleColor = texture(gColor, offset.xy).rgb;
+			float rangeCheck = smoothstep(0.0, 1.0, kernelRadius / abs(position.z - sampleDepth));
+			
+			occlusion += rangeCheck;
+			sumColor += (1 - sampleColor) * (rangeCheck);
+		}
 	}
 	occlusion = occlusion / kernelSize;
+	sumColor = sumColor / kernelSize;
 	
 	occlusion = clamp(1 - occlusion * intensity, 0, 1);
 	occlusion = pow(occlusion, power);
 	
+	float colorIntensity = intensity * 1;
+	float colorPower = power * 1;
+	sumColor = clamp(1 - sumColor * colorIntensity, 0, 1);
+	sumColor = vec3(pow(sumColor.r, colorPower), pow(sumColor.g, colorPower), pow(sumColor.b, colorPower));
 	
-	outColor = occlusion;
+	
+	outColor = vec3(sumColor * occlusion);
 }

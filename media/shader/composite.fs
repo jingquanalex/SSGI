@@ -8,6 +8,12 @@ uniform sampler2D fullScene;
 uniform sampler2D backScene;
 uniform sampler2D dsColor;
 
+float rgb2gray(vec3 color)
+{
+	color = vec3(0.2989, 0.5870, 0.1140) * color;
+	return color.r + color.b + color.g;
+}
+
 void main()
 {
 	vec4 fullcolor = texture(fullScene, TexCoord);
@@ -15,6 +21,8 @@ void main()
 	vec3 dscolor = texture(dsColor, TexCoord).rgb;
 	
 	vec4 finalcolor = vec4(dscolor, 1);
+	vec3 diffcolor = (fullcolor.rgb - backcolor.rgb) * (1 - fullcolor.a);
+	//float grays = rgb2gray(-diffcolor);
 	
 	if (fullcolor.a == 1.0)
 	{
@@ -22,9 +30,9 @@ void main()
 	}
 	else
 	{
-		vec3 fullcolorMasked = fullcolor.rgb * (1 - fullcolor.a);
-		finalcolor.rgb = dscolor - abs(fullcolorMasked - backcolor.rgb);
+		finalcolor.rgb = dscolor + diffcolor;
+		//finalcolor.rgb = dscolor - grays;
 	}
 	
-	outColor = vec4(finalcolor);
+	outColor = finalcolor;
 }

@@ -38,16 +38,16 @@ private:
 	Shader* positionShader;
 	Shader* blurShader;
 
-	int tmfKernelRadius = 1;
+	int tmfKernelRadius = 6;
 	int tmfFrameLayers = 6;
 	const int tmfMaxFrameLayers = 10;
 
 	int fillKernelRadius = 5;
 	int fillPasses = 9;
 
-	int blurKernelRadius = 4;
-	float blurSigma = 1.0f;
-	float blurBSigma = 0.01f;
+	int blurKernelRadius = 22;
+	float blurSigma = 22.0f;
+	float blurBSigma = 1.0f;
 	float blurBSigmaJBF = 0.00001f;
 	float blurSThresh = 0.02f;
 	std::vector<float> blurKernel;

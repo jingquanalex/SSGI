@@ -26,7 +26,7 @@ void Scene::recompileShaders()
 	sensor->recompileShaders();
 	gPassShader->recompile();
 	gComposePassShader->recompile();
-	ssao->recompileShader();
+	ssao->recompileShaders();
 	lightingPassShader->recompile();
 	compositeShader->recompile();
 	pointCloud->recompileShader();
@@ -97,6 +97,9 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	//dragon->load("sibenik/sibenik.obj");
 	//dragon->load("dragon/dragon.obj");
 	texWhite = Image::loadTexture(g_ExePath + "../../media/white.png");
+	texRed = Image::loadTexture(g_ExePath + "../../media/red.png");
+	texGreen = Image::loadTexture(g_ExePath + "../../media/green.png");
+	texBlue = Image::loadTexture(g_ExePath + "../../media/blue.png");
 
 	// Initialize depth sensor
 	sensor = new DSensor();
@@ -107,83 +110,85 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	pointCloud = new PointCloud(sensor->getColorMapId(), sensor->getDepthMapId());
 
 	// Initialize GUI
-	this->guiScreen = guiScreen;
-	gui = new nanogui::FormHelper(guiScreen);
-	nanoguiWindow = gui->addWindow(Eigen::Vector2i(10, 10), "ARFW");
-
-	gui->addGroup("Shader");
-	gui->addButton("Recompile", [&]()
 	{
-		recompileShaders();
-	});
+		this->guiScreen = guiScreen;
+		gui = new nanogui::FormHelper(guiScreen);
+		nanoguiWindow = gui->addWindow(Eigen::Vector2i(10, 10), "ARFW");
 
-	gui->addGroup("Camera");
-	gui->addButton("Reset Orientation", [&]()
-	{
-		camera->setPosition(vec3(0, 0, 0));
-		//camera->setDirection(vec3(0, 0, -1));
-		camera->setTargetPoint(camera->getPosition() + vec3(0, 0, -1));
-	});
+		gui->addGroup("Shader");
+		gui->addButton("Recompile", [&]()
+		{
+			recompileShaders();
+		});
 
-	gui->addGroup("Misc");
-	gui->addVariable("dragonNumRadius", dragonNumRadius);
-	gui->addButton("Spawn Dragons", [&]()
-	{
-		spawnDragons(dragonNumRadius);
-	});
+		gui->addGroup("Camera");
+		gui->addButton("Reset Orientation", [&]()
+		{
+			camera->setPosition(vec3(0, 0, 0));
+			//camera->setDirection(vec3(0, 0, -1));
+			camera->setTargetPoint(camera->getPosition() + vec3(0, 0, -1));
+		});
 
-	gui->addGroup("Light");
-	gui->addVariable("Position X", lightPosition.x);
-	gui->addVariable("Position Y", lightPosition.y);
-	gui->addVariable("Position Z", lightPosition.z);
-	gui->addVariable("Color", lightColor);
-	gui->addVariable("Roughness", roughness);
-	gui->addVariable("Metallic", metallic);
+		gui->addGroup("Misc");
+		gui->addVariable("dragonNumRadius", dragonNumRadius);
+		gui->addButton("Spawn Dragons", [&]()
+		{
+			spawnDragons(dragonNumRadius);
+		});
 
-	gui->addGroup("Kinect depth filters");
-	gui->addGroup("Temporal median filter");
-	gui->addVariable<int>("kernelRadius",
-		[&](const int &value) { sensor->setTMFKernelRadius(value); },
-		[&]() { return sensor->getTMFKernelRadius(); });
-	gui->addVariable<int>("frameLayers (max 10)",
-		[&](const int &value) { sensor->setTMFFrameLayers(value); },
-		[&]() { return sensor->getTMFFrameLayers(); });
+		gui->addGroup("Light");
+		gui->addVariable("Position X", lightPosition.x);
+		gui->addVariable("Position Y", lightPosition.y);
+		gui->addVariable("Position Z", lightPosition.z);
+		gui->addVariable("Color", lightColor);
+		gui->addVariable("Roughness", roughness);
+		gui->addVariable("Metallic", metallic);
 
-	gui->addGroup("Fill holes (median)");
-	gui->addVariable<int>("kernelRadius",
-		[&](const int &value) { sensor->setFillKernelRaidus(value); },
-		[&]() { return sensor->getFillKernelRaidus(); });
-	gui->addVariable<int>("passes (odd value only)",
-		[&](const int &value) { sensor->setFillPasses(value); },
-		[&]() { return sensor->getFillPasses(); });
+		gui->addGroup("Kinect depth filters");
+		gui->addGroup("Temporal median filter");
+		gui->addVariable<int>("kernelRadius",
+			[&](const int &value) { sensor->setTMFKernelRadius(value); },
+			[&]() { return sensor->getTMFKernelRadius(); });
+		gui->addVariable<int>("frameLayers (max 10)",
+			[&](const int &value) { sensor->setTMFFrameLayers(value); },
+			[&]() { return sensor->getTMFFrameLayers(); });
 
-	gui->addGroup("Bilateral filter");
-	gui->addVariable<int>("kernelRadius",
-		[&](const int &value) { sensor->setBlurKernelRadius(value); },
-		[&]() { return sensor->getBlurKernelRadius(); });
-	gui->addVariable<float>("sigma",
-		[&](const float &value) { sensor->setBlurSigma(value); },
-		[&]() { return sensor->getBlurSigma(); });
-	gui->addVariable<float>("bsigma",
-		[&](const float &value) { sensor->setBlurBSigma(value); },
-		[&]() { return sensor->getBlurBSigma(); });
+		gui->addGroup("Fill holes (median)");
+		gui->addVariable<int>("kernelRadius",
+			[&](const int &value) { sensor->setFillKernelRaidus(value); },
+			[&]() { return sensor->getFillKernelRaidus(); });
+		gui->addVariable<int>("passes (odd value only)",
+			[&](const int &value) { sensor->setFillPasses(value); },
+			[&]() { return sensor->getFillPasses(); });
 
-	gui->addGroup("SSAO");
-	gui->addVariable<float>("kernelRadius",
-		[&](const float &value) { ssao->setKernelRadius(value); },
-		[&]() { return ssao->getKernelRadius(); });
-	gui->addVariable<float>("sampleBias",
-		[&](const float &value) { ssao->setSampleBias(value); },
-		[&]() { return ssao->getSampleBias(); });
-	gui->addVariable<float>("intensity",
-		[&](const float &value) { ssao->setIntensity(value); },
-		[&]() { return ssao->getIntensity(); });
-	gui->addVariable<float>("power",
-		[&](const float &value) { ssao->setPower(value); },
-		[&]() { return ssao->getPower(); });
+		gui->addGroup("Bilateral filter");
+		gui->addVariable<int>("kernelRadius",
+			[&](const int &value) { sensor->setBlurKernelRadius(value); },
+			[&]() { return sensor->getBlurKernelRadius(); });
+		gui->addVariable<float>("sigma",
+			[&](const float &value) { sensor->setBlurSigma(value); },
+			[&]() { return sensor->getBlurSigma(); });
+		gui->addVariable<float>("bsigma",
+			[&](const float &value) { sensor->setBlurBSigma(value); },
+			[&]() { return sensor->getBlurBSigma(); });
 
-	guiScreen->setVisible(true);
-	guiScreen->performLayout();
+		gui->addGroup("SSAO");
+		gui->addVariable<float>("kernelRadius",
+			[&](const float &value) { ssao->setKernelRadius(value); },
+			[&]() { return ssao->getKernelRadius(); });
+		gui->addVariable<float>("sampleBias",
+			[&](const float &value) { ssao->setSampleBias(value); },
+			[&]() { return ssao->getSampleBias(); });
+		gui->addVariable<float>("intensity",
+			[&](const float &value) { ssao->setIntensity(value); },
+			[&]() { return ssao->getIntensity(); });
+		gui->addVariable<float>("power",
+			[&](const float &value) { ssao->setPower(value); },
+			[&]() { return ssao->getPower(); });
+
+		guiScreen->setVisible(true);
+		guiScreen->performLayout();
+	}
 
 	// Initialize CamMat uniform buffer
 	glGenBuffers(1, &uniform_CamMat);
@@ -370,15 +375,18 @@ void Scene::render()
 	
 	gPassShader->apply();
 
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, texWhite);
-
 	// Draw dragon fest
 	if (customPositions != nullptr)
 	{
 		for (int i = 0; i < customPositions->size(); i++)
 		{
 			if (customPositions->at(i) == glm::vec3(0)) continue;
+
+			glActiveTexture(GL_TEXTURE0);
+			if (i % 4 == 0) glBindTexture(GL_TEXTURE_2D, texWhite);
+			else if (i % 4 == 1) glBindTexture(GL_TEXTURE_2D, texRed);
+			else if (i % 4 == 2) glBindTexture(GL_TEXTURE_2D, texGreen);
+			else if (i % 4 == 3) glBindTexture(GL_TEXTURE_2D, texBlue);
 
 			dragon->setScale(vec3(0.1f));
 			dragon->setPosition(customPositions->at(i));
@@ -409,8 +417,10 @@ void Scene::render()
 
 	quad->draw();
 
-	ssao->draw(gComposedPosition, gComposedNormal);
-
+	ssao->drawLayer(1, gComposedPosition, gComposedNormal, gComposedColor);
+	ssao->drawLayer(2, sensor->getPositionMapId(), sensor->getNormalMapId(), sensor->getColorMapId());
+	ssao->drawCombined(gComposedColor);
+	
 	// draw to buffer for differential rendering
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cFullScene, 0);
@@ -428,7 +438,7 @@ void Scene::render()
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, gComposedColor);
 	glActiveTexture(GL_TEXTURE3);
-	glBindTexture(GL_TEXTURE_2D, ssao->getTextureId());
+	glBindTexture(GL_TEXTURE_2D, ssao->getTextureLayer(0));
 
 	glActiveTexture(GL_TEXTURE4);
 	glBindTexture(GL_TEXTURE_2D, sensor->getColorMapId());
@@ -444,7 +454,7 @@ void Scene::render()
 
 	quad->draw();
 
-	ssao->draw(sensor->getPositionMapId(), sensor->getNormalMapId());
+	
 
 	// Differential rendering, masked object scene
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
@@ -463,7 +473,7 @@ void Scene::render()
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, sensor->getColorMapId());
 	glActiveTexture(GL_TEXTURE3);
-	glBindTexture(GL_TEXTURE_2D, ssao->getTextureId());
+	glBindTexture(GL_TEXTURE_2D, ssao->getTextureLayer(2));
 
 	glActiveTexture(GL_TEXTURE4);
 	glBindTexture(GL_TEXTURE_2D, sensor->getColorMapId());

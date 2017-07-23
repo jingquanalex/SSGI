@@ -11,28 +11,31 @@ class SSAO
 private:
 
 	float kernelRadius = 0.1f;
-	float sampleBias = 0.0f;
+	float sampleBias = 0.001f;
 	float intensity = 1.0f;
 	float power = 1.0f;
 
 	std::vector<glm::vec3> kernel;
 	GLuint noiseTexId;
-	GLuint fbo;
+	GLuint fbo, fbo2;
 	Quad* quad;
-	Shader* shader;
+	Shader* shader, * mixLayerShader;
 	GLuint texWidth, texHeight;
-	GLuint textureId;
+	GLuint texCombined, texLayer1, texLayer2;
+
+	GLuint positionMapId, normalMapId, colorMapId;
 
 public:
 
 	SSAO(int width, int height);
 	~SSAO();
 
-	void initialize();
-	void recompileShader();
-	void draw(GLuint positionMapId, GLuint normalMapId);
+	void initializeShaders();
+	void recompileShaders();
+	void drawLayer(int layer, GLuint positionMapId, GLuint normalMapId, GLuint colorMapId);
+	void drawCombined(GLuint colorMapId);
 
-	GLuint getTextureId() const;
+	GLuint getTextureLayer(int layer) const;
 	float getKernelRadius() const;
 	float getSampleBias() const;
 	float getIntensity() const;

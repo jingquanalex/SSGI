@@ -279,11 +279,15 @@ void DSensor::recompileShaders()
 	medianShader->apply();
 	glUniform1i(glGetUniformLocation(medianShader->getShaderId(), "dsColor"), 0);
 	glUniform1i(glGetUniformLocation(medianShader->getShaderId(), "dsDepth"), 1);
+	glUniform1i(glGetUniformLocation(medianShader->getShaderId(), "kernelRadius"), fillKernelRadius);
 
+	computeBlurKernel(blurKernelRadius);
 	blurShader->recompile();
 	blurShader->apply();
 	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "dsColor"), 0);
 	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "dsDepth"), 1);
+	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "kernelRadius"), blurKernelRadius);
+	glUniform1fv(glGetUniformLocation(blurShader->getShaderId(), "kernel"), blurKernelRadius * 2 + 1, &blurKernel[0]);
 	glUniform1f(glGetUniformLocation(blurShader->getShaderId(), "sigma"), blurSigma);
 	glUniform1f(glGetUniformLocation(blurShader->getShaderId(), "bsigma"), blurBSigma);
 	setBlurKernelRadius(blurKernelRadius);
@@ -489,7 +493,7 @@ std::vector<glm::vec3>* DSensor::getCustomPositions(int sampleRadius)
 		for (int j = -sampleRadius; j <= sampleRadius; j++)
 		{
 			glm::vec3 pos;
-			glReadPixels((sampleDiff.x * i) / 1.5 + texWidth / 2, (sampleDiff.y * j) / 1.5 + texHeight / 2, 1, 1, GL_RGB, GL_FLOAT, &pos);
+			glReadPixels((int)((sampleDiff.x * i) / 1.5 + texWidth / 2), (int)((sampleDiff.y * j) / 1.5 + texHeight / 2), 1, 1, GL_RGB, GL_FLOAT, &pos);
 			customPositions.push_back(pos);
 		}
 	}

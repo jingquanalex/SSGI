@@ -41,7 +41,7 @@ void main()
 	{
 		mixPosition = dsposition;
 		mixNormal = dsnormal;
-		mixColor = vec4(dscolor, 0);
+		mixColor.rgb = dscolor;
 	}
 	
 	position = mixPosition;
