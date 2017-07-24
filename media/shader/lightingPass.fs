@@ -179,11 +179,11 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, vec3 ao)
     vec3 ambient = (kD * diffuse + specular) * ao;
     vec3 color = ambient + Lo;
 	
-	//test
-	//color = ao * albedo;
+	// test
+	//color = diffuse * ao;
 
     // HDR tonemapping
-    color = color / (color + vec3(1.0));
+    //color = color / (color + vec3(1.0));
     // gamma correct
     color = pow(color, vec3(1.0/2.2));
 	
@@ -213,7 +213,6 @@ void main()
 	vec4 finalColor = vec4(0);
 	vec3 ao = texture(aoMap, TexCoord).rgb;
 	finalColor.rgb = render(positionWorld, normalWorld, color, ao);
-	//finalColor.rgb = vec3(0.1) * ao;
 	finalColor.a = color.a;
 	
 	

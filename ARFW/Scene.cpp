@@ -110,85 +110,83 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	pointCloud = new PointCloud(sensor->getColorMapId(), sensor->getDepthMapId());
 
 	// Initialize GUI
+	this->guiScreen = guiScreen;
+	gui = new nanogui::FormHelper(guiScreen);
+	nanoguiWindow = gui->addWindow(Eigen::Vector2i(10, 10), "ARFW");
+
+	gui->addGroup("Shader");
+	gui->addButton("Recompile", [&]()
 	{
-		this->guiScreen = guiScreen;
-		gui = new nanogui::FormHelper(guiScreen);
-		nanoguiWindow = gui->addWindow(Eigen::Vector2i(10, 10), "ARFW");
+		recompileShaders();
+	});
 
-		gui->addGroup("Shader");
-		gui->addButton("Recompile", [&]()
-		{
-			recompileShaders();
-		});
+	gui->addGroup("Camera");
+	gui->addButton("Reset Orientation", [&]()
+	{
+		camera->setPosition(vec3(0, 0, 0));
+		//camera->setDirection(vec3(0, 0, -1));
+		camera->setTargetPoint(camera->getPosition() + vec3(0, 0, -1));
+	});
 
-		gui->addGroup("Camera");
-		gui->addButton("Reset Orientation", [&]()
-		{
-			camera->setPosition(vec3(0, 0, 0));
-			//camera->setDirection(vec3(0, 0, -1));
-			camera->setTargetPoint(camera->getPosition() + vec3(0, 0, -1));
-		});
+	gui->addGroup("Misc");
+	gui->addVariable("dragonNumRadius", dragonNumRadius);
+	gui->addButton("Spawn Dragons", [&]()
+	{
+		spawnDragons(dragonNumRadius);
+	});
 
-		gui->addGroup("Misc");
-		gui->addVariable("dragonNumRadius", dragonNumRadius);
-		gui->addButton("Spawn Dragons", [&]()
-		{
-			spawnDragons(dragonNumRadius);
-		});
+	gui->addGroup("Light");
+	gui->addVariable("Position X", lightPosition.x);
+	gui->addVariable("Position Y", lightPosition.y);
+	gui->addVariable("Position Z", lightPosition.z);
+	gui->addVariable("Color", lightColor);
+	gui->addVariable("Roughness", roughness);
+	gui->addVariable("Metallic", metallic);
 
-		gui->addGroup("Light");
-		gui->addVariable("Position X", lightPosition.x);
-		gui->addVariable("Position Y", lightPosition.y);
-		gui->addVariable("Position Z", lightPosition.z);
-		gui->addVariable("Color", lightColor);
-		gui->addVariable("Roughness", roughness);
-		gui->addVariable("Metallic", metallic);
+	gui->addGroup("Kinect depth filters");
+	gui->addGroup("Temporal median filter");
+	gui->addVariable<int>("kernelRadius",
+		[&](const int &value) { sensor->setTMFKernelRadius(value); },
+		[&]() { return sensor->getTMFKernelRadius(); });
+	gui->addVariable<int>("frameLayers (max 10)",
+		[&](const int &value) { sensor->setTMFFrameLayers(value); },
+		[&]() { return sensor->getTMFFrameLayers(); });
 
-		gui->addGroup("Kinect depth filters");
-		gui->addGroup("Temporal median filter");
-		gui->addVariable<int>("kernelRadius",
-			[&](const int &value) { sensor->setTMFKernelRadius(value); },
-			[&]() { return sensor->getTMFKernelRadius(); });
-		gui->addVariable<int>("frameLayers (max 10)",
-			[&](const int &value) { sensor->setTMFFrameLayers(value); },
-			[&]() { return sensor->getTMFFrameLayers(); });
+	gui->addGroup("Fill holes (median)");
+	gui->addVariable<int>("kernelRadius",
+		[&](const int &value) { sensor->setFillKernelRaidus(value); },
+		[&]() { return sensor->getFillKernelRaidus(); });
+	gui->addVariable<int>("passes (odd value only)",
+		[&](const int &value) { sensor->setFillPasses(value); },
+		[&]() { return sensor->getFillPasses(); });
 
-		gui->addGroup("Fill holes (median)");
-		gui->addVariable<int>("kernelRadius",
-			[&](const int &value) { sensor->setFillKernelRaidus(value); },
-			[&]() { return sensor->getFillKernelRaidus(); });
-		gui->addVariable<int>("passes (odd value only)",
-			[&](const int &value) { sensor->setFillPasses(value); },
-			[&]() { return sensor->getFillPasses(); });
+	gui->addGroup("Bilateral filter");
+	gui->addVariable<int>("kernelRadius",
+		[&](const int &value) { sensor->setBlurKernelRadius(value); },
+		[&]() { return sensor->getBlurKernelRadius(); });
+	gui->addVariable<float>("sigma",
+		[&](const float &value) { sensor->setBlurSigma(value); },
+		[&]() { return sensor->getBlurSigma(); });
+	gui->addVariable<float>("bsigma",
+		[&](const float &value) { sensor->setBlurBSigma(value); },
+		[&]() { return sensor->getBlurBSigma(); });
 
-		gui->addGroup("Bilateral filter");
-		gui->addVariable<int>("kernelRadius",
-			[&](const int &value) { sensor->setBlurKernelRadius(value); },
-			[&]() { return sensor->getBlurKernelRadius(); });
-		gui->addVariable<float>("sigma",
-			[&](const float &value) { sensor->setBlurSigma(value); },
-			[&]() { return sensor->getBlurSigma(); });
-		gui->addVariable<float>("bsigma",
-			[&](const float &value) { sensor->setBlurBSigma(value); },
-			[&]() { return sensor->getBlurBSigma(); });
+	gui->addGroup("SSAO");
+	gui->addVariable<float>("kernelRadius",
+		[&](const float &value) { ssao->setKernelRadius(value); },
+		[&]() { return ssao->getKernelRadius(); });
+	gui->addVariable<float>("sampleBias",
+		[&](const float &value) { ssao->setSampleBias(value); },
+		[&]() { return ssao->getSampleBias(); });
+	gui->addVariable<float>("intensity",
+		[&](const float &value) { ssao->setIntensity(value); },
+		[&]() { return ssao->getIntensity(); });
+	gui->addVariable<float>("power",
+		[&](const float &value) { ssao->setPower(value); },
+		[&]() { return ssao->getPower(); });
 
-		gui->addGroup("SSAO");
-		gui->addVariable<float>("kernelRadius",
-			[&](const float &value) { ssao->setKernelRadius(value); },
-			[&]() { return ssao->getKernelRadius(); });
-		gui->addVariable<float>("sampleBias",
-			[&](const float &value) { ssao->setSampleBias(value); },
-			[&]() { return ssao->getSampleBias(); });
-		gui->addVariable<float>("intensity",
-			[&](const float &value) { ssao->setIntensity(value); },
-			[&]() { return ssao->getIntensity(); });
-		gui->addVariable<float>("power",
-			[&](const float &value) { ssao->setPower(value); },
-			[&]() { return ssao->getPower(); });
-
-		guiScreen->setVisible(true);
-		guiScreen->performLayout();
-	}
+	guiScreen->setVisible(true);
+	guiScreen->performLayout();
 
 	// Initialize CamMat uniform buffer
 	glGenBuffers(1, &uniform_CamMat);
@@ -215,7 +213,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &gPosition);
 	glBindTexture(GL_TEXTURE_2D, gPosition);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -224,7 +222,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &gNormal);
 	glBindTexture(GL_TEXTURE_2D, gNormal);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -242,7 +240,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &gDepth);
 	glBindTexture(GL_TEXTURE_2D, gDepth);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, bufferWidth, bufferHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, bufferWidth, bufferHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -258,7 +256,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &gComposedPosition);
 	glBindTexture(GL_TEXTURE_2D, gComposedPosition);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -267,7 +265,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &gComposedNormal);
 	glBindTexture(GL_TEXTURE_2D, gComposedNormal);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -322,6 +320,8 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	initSuccess = true;
+
+	//sensor->launchUpdateThread();
 }
 
 void Scene::update()

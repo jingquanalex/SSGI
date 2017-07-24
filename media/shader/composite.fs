@@ -20,19 +20,7 @@ void main()
 	vec4 backcolor = texture(backScene, TexCoord);
 	vec3 dscolor = texture(dsColor, TexCoord).rgb;
 	
-	vec4 finalcolor = vec4(dscolor, 1);
-	vec3 diffcolor = (fullcolor.rgb - backcolor.rgb) * (1 - fullcolor.a);
-	//float grays = rgb2gray(-diffcolor);
+	vec3 finalcolor = fullcolor.rgb * fullcolor.a + (dscolor + fullcolor.rgb - backcolor.rgb) * (1 - fullcolor.a);
 	
-	if (fullcolor.a == 1.0)
-	{
-		finalcolor.rgb = fullcolor.rgb;
-	}
-	else
-	{
-		finalcolor.rgb = dscolor + diffcolor;
-		//finalcolor.rgb = dscolor - grays;
-	}
-	
-	outColor = finalcolor;
+	outColor = vec4(finalcolor, 1);
 }

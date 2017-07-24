@@ -13,10 +13,9 @@ uniform int frameLayers;
 
 void main()
 {
-	// Depth sensor textures (y is flipped)
-	vec2 dsTexCoord = vec2(TexCoord.x, 1.0 - TexCoord.y);
-	vec4 dscolor = texture(dsColor, dsTexCoord);
-	float dsdepth = texture(dsDepth, vec3(dsTexCoord, 0)).r;
+	// Depth sensor textures (TexCoord.y is flipped)
+	vec4 dscolor = texture(dsColor, TexCoord);
+	float dsdepth = texture(dsDepth, vec3(TexCoord, 0)).r;
 	
 	vec2 texelSize = 1.0 / textureSize(dsDepth, 0).xy;
 	//frameLayers = textureSize(dsDepth, 0).z;
@@ -34,7 +33,7 @@ void main()
 			{
 				for (int k = 0; k < frameLayers; k++)
 				{
-					vec3 offset = vec3(dsTexCoord + vec2(i, j) * texelSize, k);
+					vec3 offset = vec3(TexCoord + vec2(i, j) * texelSize, k);
 					float offsetDepth = texture(dsDepth, offset).r;
 					
 					if (offsetDepth > 0)
@@ -55,7 +54,7 @@ void main()
 			{
 				for (int k = 0; k < frameLayers; k++)
 				{
-					vec3 offset = vec3(dsTexCoord + vec2(i, j) * texelSize, k);
+					vec3 offset = vec3(TexCoord + vec2(i, j) * texelSize, k);
 					float offsetDepth = texture(dsDepth, offset).r;
 					
 					float diffValue = abs(offsetDepth - meanDepth);

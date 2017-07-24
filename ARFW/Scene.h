@@ -12,8 +12,6 @@
 #include "PointCloud.h"
 
 #include <random>
-#include <chrono>
-#include <thread>
 
 class Scene
 {

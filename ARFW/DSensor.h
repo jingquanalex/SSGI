@@ -4,6 +4,9 @@
 #include "Quad.h"
 #include "Shader.h"
 #include <OpenNI2\OpenNI.h>
+#include <chrono>
+#include <thread>
+#include <atomic>
 
 const GLuint maxDepth = 10000;
 
@@ -38,23 +41,25 @@ private:
 	Shader* positionShader;
 	Shader* blurShader;
 
-	int tmfKernelRadius = 6;
-	int tmfFrameLayers = 6;
+	int tmfKernelRadius = 1;
+	int tmfFrameLayers = 10;
 	const int tmfMaxFrameLayers = 10;
 
 	int fillKernelRadius = 5;
-	int fillPasses = 9;
+	int fillPasses = 11;
 
 	int blurKernelRadius = 22;
-	float blurSigma = 22.0f;
+	float blurSigma = 32.0f;
 	float blurBSigma = 1.0f;
 	float blurBSigmaJBF = 0.00001f;
 	float blurSThresh = 0.02f;
 	std::vector<float> blurKernel;
 
-	void computeBlurKernel(int radius);
+	float normpdf(float x, float s);
+	void computeBlurKernel();
 
 	std::vector<glm::vec3> customPositions;
+
 
 public:
 
@@ -64,6 +69,9 @@ public:
 	void initialize(int windowWidth, int windowHeight);
 	void recompileShaders();
 	void update();
+
+	void launchUpdateThread();
+	void updateThread(std::atomic<bool>& isRunning, unsigned int updateInterval);
 	
 	void toggleRendering();
 	std::vector<glm::vec3>* getCustomPositions(int sampleRadius);

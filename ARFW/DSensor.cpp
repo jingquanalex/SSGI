@@ -194,7 +194,7 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 
 	glGenTextures(1, &outDepthMap);
 	glBindTexture(GL_TEXTURE_2D, outDepthMap);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, texWidth, texHeight, 0, GL_RED, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, texWidth, texHeight, 0, GL_RED, GL_UNSIGNED_SHORT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -203,7 +203,7 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 
 	glGenTextures(1, &outPositionMap);
 	glBindTexture(GL_TEXTURE_2D, outPositionMap);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -212,7 +212,7 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 
 	glGenTextures(1, &outNormalMap);
 	glBindTexture(GL_TEXTURE_2D, outNormalMap);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -236,7 +236,7 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 
 	glGenTextures(1, &outDepthMap2);
 	glBindTexture(GL_TEXTURE_2D, outDepthMap2);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, texWidth, texHeight, 0, GL_RED, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, texWidth, texHeight, 0, GL_RED, GL_UNSIGNED_SHORT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -245,7 +245,7 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 
 	glGenTextures(1, &outPositionMap2);
 	glBindTexture(GL_TEXTURE_2D, outPositionMap2);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -254,7 +254,7 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 
 	glGenTextures(1, &outNormalMap2);
 	glBindTexture(GL_TEXTURE_2D, outNormalMap2);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -281,7 +281,7 @@ void DSensor::recompileShaders()
 	glUniform1i(glGetUniformLocation(medianShader->getShaderId(), "dsDepth"), 1);
 	glUniform1i(glGetUniformLocation(medianShader->getShaderId(), "kernelRadius"), fillKernelRadius);
 
-	computeBlurKernel(blurKernelRadius);
+	setBlurKernelRadius(blurKernelRadius);
 	blurShader->recompile();
 	blurShader->apply();
 	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "dsColor"), 0);
@@ -289,9 +289,7 @@ void DSensor::recompileShaders()
 	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "kernelRadius"), blurKernelRadius);
 	glUniform1fv(glGetUniformLocation(blurShader->getShaderId(), "kernel"), blurKernelRadius * 2 + 1, &blurKernel[0]);
 	glUniform1f(glGetUniformLocation(blurShader->getShaderId(), "sigma"), blurSigma);
-	glUniform1f(glGetUniformLocation(blurShader->getShaderId(), "bsigma"), blurBSigma);
-	setBlurKernelRadius(blurKernelRadius);
-
+	
 	positionShader->recompile();
 	positionShader->apply();
 	glUniform1i(glGetUniformLocation(positionShader->getShaderId(), "dsColor"), 0);
@@ -303,10 +301,10 @@ void DSensor::update()
 	if (!initOk || !isRendering) return;
 
 	int changedIndex;
-	openni::Status rc = openni::OpenNI::waitForAnyStream(streams, 2, &changedIndex);
+	openni::Status rc = openni::OpenNI::waitForAnyStream(streams, 2, &changedIndex, 0);
 	if (rc != openni::STATUS_OK)
 	{
-		printf("OpenNI Error: Wait for any stream failed\n");
+		//printf("OpenNI Error: Wait for any stream failed\n");
 		return;
 	}
 
@@ -423,19 +421,32 @@ void DSensor::update()
 			currDepthMap = currDepthMap == outDepthMap ? outDepthMap2 : outDepthMap;
 		}
 
-		// Bilateral filter pass
-		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-		glViewport(0, 0, texWidth, texHeight);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		// Gaussian filter pass (seperated)
+		currFbo = fbo2;
+		currColorMap = outColorMap;
+		currDepthMap = outDepthMap;
+		int isVertical = 0;
+		for (int i = 0; i < 2; i++)
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, currFbo);
+			glViewport(0, 0, texWidth, texHeight);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		blurShader->apply();
+			blurShader->apply();
+			glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "isVertical"), isVertical);
 
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, outColorMap2);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, outDepthMap2);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, currColorMap);
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, currDepthMap);
 
-		quad->draw();
+			quad->draw();
+
+			isVertical++;
+			currFbo = currFbo == fbo2 ? fbo : fbo2;
+			currColorMap = currColorMap == outColorMap ? outColorMap2 : outColorMap;
+			currDepthMap = currDepthMap == outDepthMap ? outDepthMap2 : outDepthMap;
+		}
 
 		// Generate position and normal pass
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
@@ -457,20 +468,23 @@ void DSensor::update()
 	}
 }
 
-float normpdf(float x, float s)
+void DSensor::updateThread(std::atomic<bool>& isRunning, unsigned int updateInterval)
 {
-	return 0.3989422f * exp(-x * x / (2.0f * s * s)) / s;
+	const auto wait_duration = std::chrono::milliseconds(updateInterval);
+	while (isRunning)
+	{
+		//update();
+		std::cout << "test" << std::endl;
+		std::this_thread::sleep_for(wait_duration);
+	}
 }
 
-void DSensor::computeBlurKernel(int radius)
+void DSensor::launchUpdateThread()
 {
-	blurKernel = std::vector<float>(64);
-
-	for (int i = 0; i <= blurKernelRadius; i++)
-	{
-		float value = normpdf((float)i, blurSigma);
-		blurKernel.at(blurKernelRadius + i) = blurKernel.at(blurKernelRadius - i) = value;
-	}
+	std::atomic<bool> running{ true };
+	const unsigned int update_interval = 50;
+	std::thread openniThread(&DSensor::updateThread, this, std::ref(running), update_interval);
+	openniThread.detach();
 }
 
 void DSensor::toggleRendering()
@@ -596,30 +610,42 @@ void DSensor::setFillPasses(int value)
 	if (value % 2 == 1) fillPasses = value;
 }
 
-void DSensor::setBlurKernelRadius(int value)
+float DSensor::normpdf(float x, float s)
 {
-	blurKernelRadius = value;
-	computeBlurKernel(blurKernelRadius);
+	return 0.3989422f * exp(-x * x / (2.0f * s * s)) / s;
+}
+
+void DSensor::computeBlurKernel()
+{
+	blurKernel = std::vector<float>(blurKernelRadius * 2 + 1);
+
+	for (int i = 0; i <= blurKernelRadius; i++)
+	{
+		float value = normpdf((float)i, blurSigma);
+		blurKernel.at(blurKernelRadius + i) = blurKernel.at(blurKernelRadius - i) = value;
+	}
 
 	blurShader->apply();
 	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "kernelRadius"), blurKernelRadius);
 	glUniform1fv(glGetUniformLocation(blurShader->getShaderId(), "kernel"), blurKernelRadius * 2 + 1, &blurKernel[0]);
+	glUniform1f(glGetUniformLocation(blurShader->getShaderId(), "sigma"), blurSigma);
+}
+
+void DSensor::setBlurKernelRadius(int value)
+{
+	blurKernelRadius = value;
+	computeBlurKernel();
 }
 
 void DSensor::setBlurSigma(float value)
 {
 	blurSigma = value;
-
-	blurShader->apply();
-	glUniform1f(glGetUniformLocation(blurShader->getShaderId(), "sigma"), blurSigma);
+	computeBlurKernel();
 }
 
 void DSensor::setBlurBSigma(float value)
 {
 	blurBSigma = value;
-
-	blurShader->apply();
-	glUniform1f(glGetUniformLocation(blurShader->getShaderId(), "bsigma"), blurBSigma);
 }
 
 

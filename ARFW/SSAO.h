@@ -10,7 +10,7 @@ class SSAO
 
 private:
 
-	float kernelRadius = 0.1f;
+	float kernelRadius = 0.05f;
 	float sampleBias = 0.001f;
 	float intensity = 1.0f;
 	float power = 1.0f;

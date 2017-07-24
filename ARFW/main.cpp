@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 	glfwMakeContextCurrent(window);
 	glfwSwapInterval(0);
 
-	glfwWindowHint(GLFW_DEPTH_BITS, 32);
+	glfwWindowHint(GLFW_DEPTH_BITS, 24);
 
 	glewInit();
 

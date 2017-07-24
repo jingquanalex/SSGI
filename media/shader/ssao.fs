@@ -36,8 +36,8 @@ void main()
 	float occlusion = 0.0;
 	vec3 sumColor = vec3(0);
 	
-	vec3 randomVec = texture(inNoise, TexCoord).xyz;
-	randomVec = vec3(1, 0, 0);
+	//vec3 randomVec = texture(inNoise, TexCoord).xyz;
+	vec3 randomVec = vec3(1, 0, 0);
 	vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
 	vec3 bitangent = cross(normal, tangent);
 	mat3 TBN = mat3(tangent, bitangent, normal);
