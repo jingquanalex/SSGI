@@ -48,12 +48,12 @@ private:
 	int fillKernelRadius = 5;
 	int fillPasses = 11;
 
+	std::vector<float> blurKernel;
 	int blurKernelRadius = 22;
 	float blurSigma = 32.0f;
 	float blurBSigma = 1.0f;
 	float blurBSigmaJBF = 0.00001f;
 	float blurSThresh = 0.02f;
-	std::vector<float> blurKernel;
 
 	float normpdf(float x, float s);
 	void computeBlurKernel();

@@ -19,13 +19,13 @@ uniform sampler2D gNormal;
 uniform sampler2D gColor;
 
 // SSAO variables
-const int kernelSize = 64;
+uniform int kernelSize = 64;
 uniform float kernelRadius = 0.35;
 uniform float sampleBias = 0.005;
 uniform float intensity = 1.0;
 uniform float power = 1.0;
 uniform sampler2D inNoise;
-uniform vec3 inSamples[kernelSize];
+uniform vec3 inSamples[64];
 
 
 void main()
@@ -45,17 +45,17 @@ void main()
 	for(int i = 0; i < kernelSize; ++i)
 	{
 		// transform offset vectors from tangent space to view space
-		vec3 fsample = TBN * inSamples[i];
-		fsample = position + fsample * kernelRadius;
+		vec3 offsetVec = TBN * inSamples[i];
+		vec3 fragPos = position + offsetVec * kernelRadius;
 		
 		// transform offset vectors from view space to window space
-		vec4 offset = kinectProjection * vec4(fsample, 1.0);
+		vec4 offset = kinectProjection * vec4(fragPos, 1.0);
 		offset.xyz /= offset.w;
 		offset.xyz = offset.xyz * 0.5 + 0.5;
 		
 		float sampleDepth = texture(gPosition, offset.xy).z;
 		
-		if (sampleDepth > fsample.z + sampleBias)
+		if (sampleDepth > fragPos.z + sampleBias)
 		{
 			vec3 sampleColor = texture(gColor, offset.xy).rgb;
 			float rangeCheck = smoothstep(0.0, 1.0, kernelRadius / abs(position.z - sampleDepth));

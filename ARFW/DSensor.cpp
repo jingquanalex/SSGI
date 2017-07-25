@@ -421,7 +421,7 @@ void DSensor::update()
 			currDepthMap = currDepthMap == outDepthMap ? outDepthMap2 : outDepthMap;
 		}
 
-		// Gaussian filter pass (seperated)
+		// Gaussian filter pass (seperated passes)
 		currFbo = fbo2;
 		currColorMap = outColorMap;
 		currDepthMap = outDepthMap;

@@ -25,12 +25,12 @@ void main()
 	
 	for (int i = -kernelRadius; i <= kernelRadius; i++)
 	{
-		float sampleWeight = kernel[kernelRadius + i];
 		vec2 sampleCoord = TexCoord + vec2(i, 0) * texelSize;
 		if (isVertical == 1) sampleCoord = TexCoord + vec2(0, i) * texelSize;
-		float sampleValue = texture(dsDepth, sampleCoord).r * sampleWeight;
+		float sampleValue = texture(dsDepth, sampleCoord).r;
+		float sampleWeight = kernel[kernelRadius + i];
 		
-		accumValue += sampleValue;
+		accumValue += sampleValue * sampleWeight;
 		accumWeight += sampleWeight;
 	}
 	

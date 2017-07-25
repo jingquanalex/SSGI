@@ -20,7 +20,8 @@ void main()
 	vec4 backcolor = texture(backScene, TexCoord);
 	vec3 dscolor = texture(dsColor, TexCoord).rgb;
 	
-	vec3 finalcolor = fullcolor.rgb * fullcolor.a + (dscolor + fullcolor.rgb - backcolor.rgb) * (1 - fullcolor.a);
+	vec4 finalcolor = fullcolor;
+	finalcolor.rgb = fullcolor.rgb * fullcolor.a + (dscolor + fullcolor.rgb - backcolor.rgb) * (1 - fullcolor.a);
 	
-	outColor = vec4(finalcolor, 1);
+	outColor = finalcolor;
 }

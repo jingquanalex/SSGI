@@ -68,10 +68,12 @@ void Scene::initializeShaders()
 
 void Scene::initialize(nanogui::Screen* guiScreen)
 {
-	// Load framework objects
+	// Fix to preset resolution for now
 	bufferWidth = g_windowWidth;
 	bufferHeight = g_windowHeight;
-	camera = new CameraFPS(g_windowWidth, g_windowHeight);
+
+	// Load framework objects
+	camera = new CameraFPS(bufferWidth, bufferHeight);
 	camera->setActive(true);
 	camera->setMoveSpeed(1);
 	camera->setPosition(vec3(0, 0, 0));
@@ -80,7 +82,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	lightingPassShader = new Shader("lightingPass");
 	gComposePassShader = new Shader("gComposePass");
 
-	ssao = new SSAO(g_windowWidth, g_windowHeight);
+	ssao = new SSAO(bufferWidth, bufferHeight);
 	quad = new Quad();
 	plane = new Object();
 	plane->setGPassShaderId(gPassShader->getShaderId());
@@ -103,7 +105,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	// Initialize depth sensor
 	sensor = new DSensor();
-	sensor->initialize(g_windowWidth, g_windowHeight);
+	sensor->initialize(bufferWidth, bufferHeight);
 
 	randomFloats = uniform_real_distribution<float>(0.0f, 1.0f);
 
@@ -135,7 +137,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 		spawnDragons(dragonNumRadius);
 	});
 
-	gui->addGroup("Light");
+	gui->addGroup("Light/Material");
 	gui->addVariable("Position X", lightPosition.x);
 	gui->addVariable("Position Y", lightPosition.y);
 	gui->addVariable("Position Z", lightPosition.z);
@@ -160,18 +162,18 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 		[&](const int &value) { sensor->setFillPasses(value); },
 		[&]() { return sensor->getFillPasses(); });
 
-	gui->addGroup("Bilateral filter");
+	gui->addGroup("Gaussian filter");
 	gui->addVariable<int>("kernelRadius",
 		[&](const int &value) { sensor->setBlurKernelRadius(value); },
 		[&]() { return sensor->getBlurKernelRadius(); });
 	gui->addVariable<float>("sigma",
 		[&](const float &value) { sensor->setBlurSigma(value); },
 		[&]() { return sensor->getBlurSigma(); });
-	gui->addVariable<float>("bsigma",
-		[&](const float &value) { sensor->setBlurBSigma(value); },
-		[&]() { return sensor->getBlurBSigma(); });
 
 	gui->addGroup("SSAO");
+	gui->addVariable<int>("kernelSize",
+		[&](const int &value) { ssao->setKernelSize(value); },
+		[&]() { return ssao->getKernelSize(); });
 	gui->addVariable<float>("kernelRadius",
 		[&](const float &value) { ssao->setKernelRadius(value); },
 		[&]() { return ssao->getKernelRadius(); });
@@ -184,7 +186,16 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	gui->addVariable<float>("power",
 		[&](const float &value) { ssao->setPower(value); },
 		[&]() { return ssao->getPower(); });
-
+	gui->addVariable<int>("filterKernelRadius",
+		[&](const int &value) { ssao->setBlurKernelRadius(value); },
+		[&]() { return ssao->getBlurKernelRadius(); });
+	gui->addVariable<float>("filterSigma",
+		[&](const float &value) { ssao->setBlurSigma(value); },
+		[&]() { return ssao->getBlurSigma(); });
+	gui->addVariable<float>("filterBSigma",
+		[&](const float &value) { ssao->setBlurBSigma(value); },
+		[&]() { return ssao->getBlurBSigma(); });
+	
 	guiScreen->setVisible(true);
 	guiScreen->performLayout();
 
@@ -426,7 +437,7 @@ void Scene::render()
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cFullScene, 0);
 
 	// Lighting pass
-	glViewport(0, 0, g_windowWidth, g_windowHeight);
+	glViewport(0, 0, bufferWidth, bufferHeight);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	lightingPassShader->apply();
@@ -461,7 +472,7 @@ void Scene::render()
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cBackScene, 0);
 
 	// Lighting pass
-	glViewport(0, 0, g_windowWidth, g_windowHeight);
+	glViewport(0, 0, bufferWidth, bufferHeight);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	lightingPassShader->apply();
@@ -491,7 +502,7 @@ void Scene::render()
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	glViewport(0, 0, g_windowWidth, g_windowHeight);
+	glViewport(0, 0, bufferWidth, bufferHeight);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	compositeShader->apply();
