@@ -91,10 +91,12 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	plane->load("cube/cube.obj");
 	dragon = new Object();
 	dragon->setGPassShaderId(gPassShader->getShaderId());
+	//dragon->setBoundingBoxVisible(true);
 	//dragon->setScale(vec3(0.05f));
 	dragon->setScale(vec3(0.25f));
 	dragon->setPosition(vec3(0, 0, -0.5));
-	dragon->setRotation(vec3(0, 90, 0));
+	//dragon->setRotationEulerAngle(vec3(0, 90, 0));
+	dragon->setRotationByAxisAngle(vec3(0, 1, 0), 90);
 	dragon->load("dragon.obj");
 	//dragon->load("sibenik/sibenik.obj");
 	//dragon->load("dragon/dragon.obj");
@@ -400,8 +402,9 @@ void Scene::render()
 			else if (i % 4 == 3) glBindTexture(GL_TEXTURE_2D, texBlue);
 
 			dragon->setScale(vec3(0.1f));
-			dragon->setPosition(customPositions->at(i));
-			dragon->setRotation(customRotations.at(i));
+			float halfHeight = (dragon->getBoundingBox().Height / 2) * 0.8f;
+			dragon->setPosition(customPositions->at(i) + customNormals->at(i) * halfHeight);
+			dragon->setRotationByAxisAngle(customNormals->at(i), customRandoms.at(i) * 360.0f);
 			dragon->drawMeshOnly();
 		}
 	}
@@ -524,11 +527,12 @@ void Scene::render()
 
 void Scene::spawnDragons(int numRadius)
 {
-	customPositions = sensor->getCustomPositions(numRadius);
-	customRotations.clear();
+	sensor->getCustomPixelInfo(numRadius, customPositions, customNormals);
+
+	customRandoms.clear();
 	for (int i = 0; i < customPositions->size(); i++)
 	{
-		customRotations.push_back(vec3(randomFloats(generator) * 360, randomFloats(generator) * 360, randomFloats(generator) * 360));
+		customRandoms.push_back(randomFloats(generator));
 	}
 }
 

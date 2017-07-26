@@ -14,7 +14,7 @@ Camera::Camera(int windowWidth, int windowHeight)
 	direction = vec3(0.0f, 0.0f, -1.0f);
 	up = vec3(0.0f, 1.0f, 0.0f);
 	fov = 75.0f;
-	zNear = 0.01f;
+	zNear = 0.001f;
 	zFar = 1000.0f;
 
 	mouseSensitivity = 0.2f;

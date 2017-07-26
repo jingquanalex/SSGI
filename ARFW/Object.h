@@ -10,25 +10,24 @@ class Object
 
 protected:
 
-	glm::mat4 matRotation;
+	glm::vec3 position, rotation, scale, up;
+	glm::mat4 matTranslate, matRotation, matScale;
 	glm::mat4 matModel, matModelInverse;
-	glm::vec3 position, rotation, scale;
 	static GLuint defaultTexID;
 
 	Model* model;
+	BoundingBox boundingBox;
 	GLuint gPassShaderId;
 
 	GLuint lineVbo;
 	GLuint lineVao;
 	std::vector<glm::vec3> lineVertices;
-	std::vector<BoundingBox> listBoundingBox;
-	bool isBoundingBoxVisible;
-	bool isVisible;
-	bool isWireframeMode;
+	bool boundingBoxVisible;
+	bool visible;
+	bool wireframe;
 
 	virtual void updateModelMatrix();
-
-	void makeBoundingBoxData();
+	void updateBoundingBoxData();
 
 public:
 
@@ -43,7 +42,9 @@ public:
 	// === Accessors ===
 
 	void setPosition(glm::vec3 position);
-	void setRotation(glm::vec3 rotation);
+	void setRotationEulerAngle(glm::vec3 rotation);
+	void setUpVector(glm::vec3 up);
+	void setRotationByAxisAngle(glm::vec3 axis, float angle);
 	void setScale(glm::vec3 scale);
 	void setBoundingBoxVisible(bool isVisible);
 	void setVisible(bool isVisible);
@@ -51,12 +52,12 @@ public:
 	void setGPassShaderId(GLuint id);
 
 	glm::vec3 getPosition() const;
-	glm::vec3 getRotation() const;
+	glm::vec3 getRotationEulerAngle() const;
 	glm::vec3 getScale() const;
 	glm::mat4 getRotationMatrix() const;
-	bool getBoundingBoxVisible() const;
-	bool getVisible() const;
-	bool getWireframeMode() const;
-	const std::vector<BoundingBox>* getBoundingBoxList() const;
+	BoundingBox getBoundingBox() const;
+	bool isBoundingBoxVisible() const;
+	bool isVisible() const;
+	bool isWireframe() const;
 	static GLuint getDefaultTex();
 };

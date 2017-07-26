@@ -39,7 +39,8 @@ private:
 	std::uniform_real_distribution<float> randomFloats;
 	std::default_random_engine generator;
 	std::vector<glm::vec3>* customPositions = nullptr;
-	std::vector<glm::vec3> customRotations;
+	std::vector<glm::vec3>* customNormals = nullptr;
+	std::vector<float> customRandoms;
 	int runAfterFrames = 10, runAfterFramesCounter = 0;
 
 	GLuint uniform_CamMat;

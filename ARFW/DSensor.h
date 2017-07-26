@@ -59,6 +59,7 @@ private:
 	void computeBlurKernel();
 
 	std::vector<glm::vec3> customPositions;
+	std::vector<glm::vec3> customNormals;
 
 
 public:
@@ -74,7 +75,7 @@ public:
 	void updateThread(std::atomic<bool>& isRunning, unsigned int updateInterval);
 	
 	void toggleRendering();
-	std::vector<glm::vec3>* getCustomPositions(int sampleRadius);
+	void getCustomPixelInfo(int sampleRadius, std::vector<glm::vec3>*& outPositions, std::vector<glm::vec3>*& outNormals);
 
 	GLuint getColorMapId() const;
 	GLuint getDepthMapId() const;

@@ -492,27 +492,42 @@ void DSensor::toggleRendering()
 	isRendering = !isRendering;
 }
 
-std::vector<glm::vec3>* DSensor::getCustomPositions(int sampleRadius)
+void DSensor::getCustomPixelInfo(int sampleRadius, std::vector<glm::vec3>*& outPositions, std::vector<glm::vec3>*& outNormals)
 {
 	customPositions.clear();
+	customNormals.clear();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
-	glReadBuffer(GL_COLOR_ATTACHMENT2);
 
-	int sampleWidth = sampleRadius * 2 + 1;
+	// Get positions
+	glReadBuffer(GL_COLOR_ATTACHMENT2);
 	glm::vec2 sampleDiff = glm::vec2(texWidth, texHeight) / (sampleRadius * 2);
 
 	for (int i = -sampleRadius; i <= sampleRadius; i++)
 	{
 		for (int j = -sampleRadius; j <= sampleRadius; j++)
 		{
-			glm::vec3 pos;
-			glReadPixels((int)((sampleDiff.x * i) / 1.5 + texWidth / 2), (int)((sampleDiff.y * j) / 1.5 + texHeight / 2), 1, 1, GL_RGB, GL_FLOAT, &pos);
-			customPositions.push_back(pos);
+			glm::vec3 out;
+			glReadPixels((int)((sampleDiff.x * i) / 1.5 + texWidth / 2), (int)((sampleDiff.y * j) / 1.5 + texHeight / 2), 1, 1, GL_RGB, GL_FLOAT, &out);
+			customPositions.push_back(out);
 		}
 	}
 
-	return &customPositions;
+	// Get normals
+	glReadBuffer(GL_COLOR_ATTACHMENT3);
+
+	for (int i = -sampleRadius; i <= sampleRadius; i++)
+	{
+		for (int j = -sampleRadius; j <= sampleRadius; j++)
+		{
+			glm::vec3 out;
+			glReadPixels((int)((sampleDiff.x * i) / 1.5 + texWidth / 2), (int)((sampleDiff.y * j) / 1.5 + texHeight / 2), 1, 1, GL_RGB, GL_FLOAT, &out);
+			customNormals.push_back(out);
+		}
+	}
+
+	outPositions = &customPositions;
+	outNormals = &customNormals;
 }
 
 GLuint DSensor::getColorMapId() const
