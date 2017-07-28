@@ -14,9 +14,6 @@ layout (std140, binding = 9) uniform MatCam
 	mat4 kinectProjectionInverse;
 };
 
-//uniform vec2 bufferSize = vec2(1920, 1080);
-//uniform vec2 texelSize = 1.0 / vec2(1920, 1080);
-
 uniform sampler2D gPosition;
 uniform sampler2D gNormal;
 uniform sampler2D gColor;
@@ -48,7 +45,7 @@ vec3 depthToViewPosition(float depth, vec2 texcoord)
 {
     vec4 clipPosition = vec4(texcoord * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
     vec4 viewPosition = projectionInverse * clipPosition;
-    return viewPosition.xyz / viewPosition.w;
+    return (viewPosition / viewPosition.w).xyz;
 }
 
 // Rendering equation, cook torrance brdf
@@ -179,7 +176,6 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, vec3 ao)
 	return color;
 }
 
-
 // Main
 
 void main()
@@ -197,6 +193,8 @@ void main()
 	// Depth sensor outputs
 	vec4 dscolor = texture(dsColor, TexCoord);
 	float dsdepth = texture(dsDepth, TexCoord).r;
+	
+	
 	
 	vec4 finalColor = vec4(0);
 	vec3 ao = texture(aoMap, TexCoord).rgb;

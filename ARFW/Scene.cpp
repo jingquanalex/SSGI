@@ -28,6 +28,7 @@ void Scene::recompileShaders()
 	gComposePassShader->recompile();
 	ssao->recompileShaders();
 	lightingPassShader->recompile();
+	ssReflectionPassShader->recompile();
 	compositeShader->recompile();
 	pointCloud->recompileShader();
 	initializeShaders();
@@ -60,6 +61,15 @@ void Scene::initializeShaders()
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "prefilterMap"), 7);
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "brdfLUT"), 8);
 
+	ssReflectionPassShader->apply();
+	glUniform1i(glGetUniformLocation(ssReflectionPassShader->getShaderId(), "gPosition"), 0);
+	glUniform1i(glGetUniformLocation(ssReflectionPassShader->getShaderId(), "gNormal"), 1);
+	glUniform1i(glGetUniformLocation(ssReflectionPassShader->getShaderId(), "inColor"), 2);
+	glUniform1i(glGetUniformLocation(ssReflectionPassShader->getShaderId(), "irradianceMap"), 3);
+	glUniform1i(glGetUniformLocation(ssReflectionPassShader->getShaderId(), "prefilterMap"), 4);
+	glUniform1i(glGetUniformLocation(ssReflectionPassShader->getShaderId(), "brdfLUT"), 5);
+
+
 	compositeShader->apply();
 	glUniform1i(glGetUniformLocation(compositeShader->getShaderId(), "fullScene"), 0);
 	glUniform1i(glGetUniformLocation(compositeShader->getShaderId(), "backScene"), 1);
@@ -80,14 +90,15 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	camera->setDirection(vec3(0, 0, -1));
 	gPassShader = new Shader("gPass");
 	lightingPassShader = new Shader("lightingPass");
+	ssReflectionPassShader = new Shader("reflectPass");
 	gComposePassShader = new Shader("gComposePass");
 
 	ssao = new SSAO(bufferWidth, bufferHeight);
 	quad = new Quad();
 	plane = new Object();
 	plane->setGPassShaderId(gPassShader->getShaderId());
-	plane->setPosition(vec3(0.0f, -0.75f, -4.0f));
-	plane->setScale(vec3(1.0f, 0.1f, 1.0f));
+	plane->setPosition(vec3(0.0f, -0.2f, -0.3f));
+	plane->setScale(vec3(0.2f, 0.2f, 0.2f));
 	plane->load("cube/cube.obj");
 	dragon = new Object();
 	dragon->setGPassShaderId(gPassShader->getShaderId());
@@ -263,9 +274,9 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	const GLuint attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
 	glDrawBuffers(3, attachments);
 
-	// Create buffers for gBlend pass
-	glGenFramebuffers(1, &gBlendBuffer);
-	glBindFramebuffer(GL_FRAMEBUFFER, gBlendBuffer);
+	// Create buffers for gComposeBuffer pass
+	glGenFramebuffers(1, &gComposeBuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, gComposeBuffer);
 
 	glGenTextures(1, &gComposedPosition);
 	glBindTexture(GL_TEXTURE_2D, gComposedPosition);
@@ -311,6 +322,14 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &cBackScene);
 	glBindTexture(GL_TEXTURE_2D, cBackScene);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glGenTextures(1, &cLighting);
+	glBindTexture(GL_TEXTURE_2D, cLighting);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -379,7 +398,7 @@ void Scene::render()
 {
 	if (!initSuccess) return;
 
-	// G-Buffer pass
+	// GBuffer pass
 	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
 	glViewport(0, 0, bufferWidth, bufferHeight);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -387,6 +406,8 @@ void Scene::render()
 	//pointCloud->draw();
 	
 	gPassShader->apply();
+
+	plane->draw();
 
 	// Draw dragon fest
 	if (customPositions != nullptr)
@@ -409,8 +430,8 @@ void Scene::render()
 		}
 	}
 
-	// Combine G-Buffer and kinect buffers
-	glBindFramebuffer(GL_FRAMEBUFFER, gBlendBuffer);
+	// Combine GBuffer and kinect buffers
+	glBindFramebuffer(GL_FRAMEBUFFER, gComposeBuffer);
 	glViewport(0, 0, bufferWidth, bufferHeight);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -431,13 +452,15 @@ void Scene::render()
 
 	quad->draw();
 
+	// Compute ssao for GBuffer and kinect inputs
 	ssao->drawLayer(1, gComposedPosition, gComposedNormal, gComposedColor);
 	ssao->drawLayer(2, sensor->getPositionMapId(), sensor->getNormalMapId(), sensor->getColorMapId());
 	ssao->drawCombined(gComposedColor);
+
 	
-	// draw to buffer for differential rendering
+	// Differential rendering: Rendered (virtual) scene pass
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cFullScene, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cLighting, 0);
 
 	// Lighting pass
 	glViewport(0, 0, bufferWidth, bufferHeight);
@@ -469,10 +492,33 @@ void Scene::render()
 	quad->draw();
 
 	
+	// Draw to differential rendering texture for the full rendered scene
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cFullScene, 0);
 
-	// Differential rendering, masked object scene
-	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cBackScene, 0);
+	// Screen space reflection pass
+	glViewport(0, 0, bufferWidth, bufferHeight);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	ssReflectionPassShader->apply();
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, gComposedPosition);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, gComposedNormal);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, cLighting);
+
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+	glActiveTexture(GL_TEXTURE4);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
+	glActiveTexture(GL_TEXTURE5);
+	glBindTexture(GL_TEXTURE_2D, brdfLUT);
+
+	quad->draw();
+
+	// Differential rendering: Background (real) scene pass
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cLighting, 0);
 
 	// Lighting pass
 	glViewport(0, 0, bufferWidth, bufferHeight);
@@ -503,6 +549,33 @@ void Scene::render()
 
 	quad->draw();
 
+	// Draw to another differential rendering texture for the background scene
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cBackScene, 0);
+
+	// Screen space reflection pass
+	glViewport(0, 0, bufferWidth, bufferHeight);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	ssReflectionPassShader->apply();
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, gComposedPosition);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, gComposedNormal);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, cLighting);
+
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+	glActiveTexture(GL_TEXTURE4);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
+	glActiveTexture(GL_TEXTURE5);
+	glBindTexture(GL_TEXTURE_2D, brdfLUT);
+
+	quad->draw();
+
+
+	// Combine the differential rendering textures
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	glViewport(0, 0, bufferWidth, bufferHeight);
@@ -518,6 +591,7 @@ void Scene::render()
 	glBindTexture(GL_TEXTURE_2D, sensor->getColorMapId());
 
 	quad->draw();
+
 
 	// Draw GUI
 	guiScreen->drawWidgets();

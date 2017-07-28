@@ -50,8 +50,8 @@ void main()
 		
 		// transform offset vectors from view space to window space
 		vec4 offset = kinectProjection * vec4(fragPos, 1.0);
-		offset.xyz /= offset.w;
-		offset.xyz = offset.xyz * 0.5 + 0.5;
+		offset.xy /= offset.w;
+		offset.xy = offset.xy * 0.5 + 0.5;
 		
 		float sampleDepth = texture(gPosition, offset.xy).z;
 		

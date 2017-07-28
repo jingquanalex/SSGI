@@ -21,7 +21,7 @@ private:
 	bool initSuccess = false;
 	double currentTime, previousTime = 0.0;
 
-	GLuint gBuffer, gBlendBuffer;
+	GLuint gBuffer, gComposeBuffer;
 	GLuint gPosition, gNormal, gColor, gDepth;
 	GLuint gComposedPosition, gComposedNormal, gComposedColor, gComposedDepth;
 	Shader* gPassShader = nullptr;
@@ -67,6 +67,9 @@ private:
 	GLuint captureFBO;
 	GLuint cFullScene;
 	GLuint cBackScene;
+
+	Shader* ssReflectionPassShader;
+	GLuint cLighting;
 
 	PointCloud* pointCloud;
 
