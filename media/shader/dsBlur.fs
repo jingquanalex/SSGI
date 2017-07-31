@@ -19,14 +19,16 @@ void main()
 	float dsdepth = texture(dsDepth, TexCoord).r;
 	vec2 texelSize = 1 / vec2(textureSize(dsDepth, 0));
 	
+	if (isVertical == 1) texelSize = vec2(0, texelSize.y);
+	else texelSize = vec2(texelSize.x, 0);
+	
 	// Gaussian filter
 	float accumValue = 0;
 	float accumWeight = 0;
 	
 	for (int i = -kernelRadius; i <= kernelRadius; i++)
 	{
-		vec2 sampleCoord = TexCoord + vec2(i, 0) * texelSize;
-		if (isVertical == 1) sampleCoord = TexCoord + vec2(0, i) * texelSize;
+		vec2 sampleCoord = TexCoord + i * texelSize;
 		float sampleValue = texture(dsDepth, sampleCoord).r;
 		float sampleWeight = kernel[kernelRadius + i];
 		

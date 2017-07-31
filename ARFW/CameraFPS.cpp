@@ -50,11 +50,12 @@ void CameraFPS::keyCallback(int key, int action)
 
 	if (key == GLFW_KEY_LEFT_SHIFT && action == GLFW_PRESS)
 	{
+		prevMoveSpeed = moveSpeed;
 		moveSpeed *= 2;
 	}
 	else if (key == GLFW_KEY_LEFT_SHIFT && action == GLFW_RELEASE)
 	{
-		moveSpeed = 10.0f;
+		moveSpeed = prevMoveSpeed;
 	}
 
 	switch (key)

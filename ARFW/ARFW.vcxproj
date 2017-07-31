@@ -183,6 +183,7 @@ xcopy /Y /D /I /E "$(SolutionDir)OpenNI2" "$(OutDir)"</Command>
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="SSAO.cpp" />
+    <ClCompile Include="SSReflection.cpp" />
     <ClCompile Include="Timer.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -200,6 +201,7 @@ xcopy /Y /D /I /E "$(SolutionDir)OpenNI2" "$(OutDir)"</Command>
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="SSAO.h" />
+    <ClInclude Include="SSReflection.h" />
     <ClInclude Include="Timer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

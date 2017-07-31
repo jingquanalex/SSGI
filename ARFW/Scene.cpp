@@ -28,7 +28,7 @@ void Scene::recompileShaders()
 	gComposePassShader->recompile();
 	ssao->recompileShaders();
 	lightingPassShader->recompile();
-	ssReflectionPassShader->recompile();
+	ssr->recompileShaders();
 	compositeShader->recompile();
 	pointCloud->recompileShader();
 	initializeShaders();
@@ -61,15 +61,6 @@ void Scene::initializeShaders()
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "prefilterMap"), 7);
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "brdfLUT"), 8);
 
-	ssReflectionPassShader->apply();
-	glUniform1i(glGetUniformLocation(ssReflectionPassShader->getShaderId(), "gPosition"), 0);
-	glUniform1i(glGetUniformLocation(ssReflectionPassShader->getShaderId(), "gNormal"), 1);
-	glUniform1i(glGetUniformLocation(ssReflectionPassShader->getShaderId(), "inColor"), 2);
-	glUniform1i(glGetUniformLocation(ssReflectionPassShader->getShaderId(), "irradianceMap"), 3);
-	glUniform1i(glGetUniformLocation(ssReflectionPassShader->getShaderId(), "prefilterMap"), 4);
-	glUniform1i(glGetUniformLocation(ssReflectionPassShader->getShaderId(), "brdfLUT"), 5);
-
-
 	compositeShader->apply();
 	glUniform1i(glGetUniformLocation(compositeShader->getShaderId(), "fullScene"), 0);
 	glUniform1i(glGetUniformLocation(compositeShader->getShaderId(), "backScene"), 1);
@@ -83,16 +74,17 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	bufferHeight = g_windowHeight;
 
 	// Load framework objects
+	timerRunOnceOnStart = new Timer(1.0f, 1.0f);
 	camera = new CameraFPS(bufferWidth, bufferHeight);
 	camera->setActive(true);
-	camera->setMoveSpeed(1);
+	camera->setMoveSpeed(0.5);
 	camera->setPosition(vec3(0, 0, 0));
 	camera->setDirection(vec3(0, 0, -1));
 	gPassShader = new Shader("gPass");
 	lightingPassShader = new Shader("lightingPass");
-	ssReflectionPassShader = new Shader("reflectPass");
 	gComposePassShader = new Shader("gComposePass");
 
+	ssr = new SSReflection(bufferWidth, bufferHeight);
 	ssao = new SSAO(bufferWidth, bufferHeight);
 	quad = new Quad();
 	plane = new Object();
@@ -208,6 +200,17 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	gui->addVariable<float>("filterBSigma",
 		[&](const float &value) { ssao->setBlurBSigma(value); },
 		[&]() { return ssao->getBlurBSigma(); });
+
+	Eigen::Vector2i windowSize = nanoguiWindow->size();
+	nanoguiWindow2 = gui->addWindow(Eigen::Vector2i(250, 10), "More options");
+
+	gui->addGroup("SSReflections");
+	gui->addVariable<int>("kernelRadius",
+		[&](const int &value) { ssr->setGaussianKernelRadius(value); },
+		[&]() { return ssr->getGaussianKernelRadius(); });
+	gui->addVariable<float>("sigma",
+		[&](const float &value) { ssr->setGaussianSigma(value); },
+		[&]() { return ssr->getGaussianSigma(); });
 	
 	guiScreen->setVisible(true);
 	guiScreen->performLayout();
@@ -335,10 +338,9 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	
+
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
 
 	// Init shader uniforms
 	initializeShaders();
@@ -351,9 +353,10 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	//glEnable(GL_BLEND);
 	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	initSuccess = true;
-
 	//sensor->launchUpdateThread();
+
+	initSuccess = true;
+	previousTime = glfwGetTime();
 }
 
 void Scene::update()
@@ -364,6 +367,8 @@ void Scene::update()
 	currentTime = glfwGetTime();
 	float frameTime = (float)(currentTime - previousTime);
 	previousTime = currentTime;
+
+	Timer::updateTimers(frameTime);
 
 	lightingPassShader->apply();
 	glUniform3fv(glGetUniformLocation(lightingPassShader->getShaderId(), "cameraPosition"), 1, value_ptr(camera->getPosition()));
@@ -384,13 +389,9 @@ void Scene::update()
 	glBufferSubData(GL_UNIFORM_BUFFER, 4 * sizeof(mat4), sizeof(mat4), value_ptr(sensor->getMatProjection()));
 	glBufferSubData(GL_UNIFORM_BUFFER, 5 * sizeof(mat4), sizeof(mat4), value_ptr(sensor->getMatProjectionInverse()));
 
-	if (runAfterFramesCounter < runAfterFrames)
+	if (timerRunOnceOnStart->ticked())
 	{
-		runAfterFramesCounter++;
-		if (runAfterFramesCounter == runAfterFrames)
-		{
-			spawnDragons(1);
-		}
+		spawnDragons(1);
 	}
 }
 
@@ -492,30 +493,7 @@ void Scene::render()
 	quad->draw();
 
 	
-	// Draw to differential rendering texture for the full rendered scene
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cFullScene, 0);
-
-	// Screen space reflection pass
-	glViewport(0, 0, bufferWidth, bufferHeight);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	ssReflectionPassShader->apply();
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gComposedPosition);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, gComposedNormal);
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, cLighting);
-
-	glActiveTexture(GL_TEXTURE3);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
-	glActiveTexture(GL_TEXTURE4);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
-	glActiveTexture(GL_TEXTURE5);
-	glBindTexture(GL_TEXTURE_2D, brdfLUT);
-
-	quad->draw();
+	ssr->draw(gComposedPosition, gComposedNormal, cLighting, sensor->getColorMapId(), cFullScene);
 
 	// Differential rendering: Background (real) scene pass
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cLighting, 0);
@@ -549,30 +527,8 @@ void Scene::render()
 
 	quad->draw();
 
-	// Draw to another differential rendering texture for the background scene
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cBackScene, 0);
-
 	// Screen space reflection pass
-	glViewport(0, 0, bufferWidth, bufferHeight);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	ssReflectionPassShader->apply();
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gComposedPosition);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, gComposedNormal);
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, cLighting);
-
-	glActiveTexture(GL_TEXTURE3);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
-	glActiveTexture(GL_TEXTURE4);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
-	glActiveTexture(GL_TEXTURE5);
-	glBindTexture(GL_TEXTURE_2D, brdfLUT);
-
-	quad->draw();
+	ssr->draw(gComposedPosition, gComposedNormal, cLighting, sensor->getColorMapId(), cBackScene);
 
 
 	// Combine the differential rendering textures
@@ -610,9 +566,12 @@ void Scene::spawnDragons(int numRadius)
 	}
 }
 
+
+
 void Scene::keyCallback(int key, int action)
 {
 	if (nanoguiWindow != nullptr && nanoguiWindow->focused()) return;
+	if (nanoguiWindow2 != nullptr && nanoguiWindow2->focused()) return;
 
 	camera->keyCallback(key, action);
 

@@ -49,7 +49,7 @@ private:
 	int fillPasses = 11;
 
 	std::vector<float> blurKernel;
-	int blurKernelRadius = 22;
+	int blurKernelRadius = 32;
 	float blurSigma = 32.0f;
 	float blurBSigma = 1.0f;
 	float blurBSigmaJBF = 0.00001f;
@@ -67,8 +67,10 @@ public:
 	DSensor();
 	~DSensor();
 
-	void initialize(int windowWidth, int windowHeight);
+	void initializeShaders();
 	void recompileShaders();
+
+	void initialize(int windowWidth, int windowHeight);
 	void update();
 
 	void launchUpdateThread();

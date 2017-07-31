@@ -1,41 +1,25 @@
-// By Morgan McGuire and Michael Mara at Williams College 2014
-// Released as open source under the BSD 2-Clause License
-// http://opensource.org/licenses/BSD-2-Clause
-//
-// Copyright (c) 2014, Morgan McGuire and Michael Mara
-// All rights reserved.
-//
-// From McGuire and Mara, Efficient GPU Screen-Space Ray Tracing,
-// Journal of Computer Graphics Techniques, 2014
-//
-// This software is open source under the "BSD 2-clause license":
-//
-// Redistribution and use in source and binary forms, with or
-// without modification, are permitted provided that the following
-// conditions are met:
-//
-// 1. Redistributions of source code must retain the above
-// copyright notice, this list of conditions and the following
-// disclaimer.
-//
-// 2. Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following
-// disclaimer in the documentation and/or other materials provided
-// with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
-// CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
-// USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
-// AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-// LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-// IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
-// THE POSSIBILITY OF SUCH DAMAGE.
+//  Copyright (c) 2015, Ben Hopkins (kode80)
+//  All rights reserved.
+//  
+//  Redistribution and use in source and binary forms, with or without modification, 
+//  are permitted provided that the following conditions are met:
+//  
+//  1. Redistributions of source code must retain the above copyright notice, 
+//     this list of conditions and the following disclaimer.
+//  
+//  2. Redistributions in binary form must reproduce the above copyright notice, 
+//     this list of conditions and the following disclaimer in the documentation 
+//     and/or other materials provided with the distribution.
+//  
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY 
+//  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
+//  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL 
+//  THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT 
+//  OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
+//  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #version 450
 
@@ -62,14 +46,15 @@ uniform sampler2D gPosition;
 uniform sampler2D gNormal;
 uniform sampler2D inColor;
 uniform sampler2D dsColor;
+uniform samplerCube irradianceMap;
+uniform samplerCube prefilterMap;
+uniform sampler2D brdfLUT;
 
 
 // Screen Space Raytracing, Morgan McGuire and Michael Mara
 // http://casual-effects.blogspot.com/2014/08/screen-space-ray-tracing.html
-// Modified with improvements from Ben Hopkins
+// Adapted in Screen Space Reflections in Unity 5, Ben Hopkins
 // http://kode80.com/blog/2015/03/11/screen-space-reflections-in-unity-5/index.html
-// and Will Pearce
-// http://roar11.com/2015/07/screen-space-glossy-reflections/
 
 /**
     \param rayOrigin Camera-space ray origin, which must be 
@@ -112,10 +97,10 @@ uniform sampler2D dsColor;
  
 uniform float maxSteps = 100;
 uniform float binarySearchSteps = 10;
-uniform float maxRayTraceDistance = 0.2;
+uniform float maxRayTraceDistance = 0.1;
 uniform float nearPlaneZ = -0.01;
 uniform float rayZThickness = 0.002;
-uniform float stride = 3;
+uniform float stride = 5;
 uniform float strideZCutoff = 2.5;
 
 uniform float screenEdgeFadeStart = 0.8;
@@ -125,9 +110,10 @@ uniform float cameraFadeLength = 0.1;
 float distanceSquared(vec2 a, vec2 b) { a -= b; return dot(a, a); }
 void swap(inout float a, inout float b) { float t = a; a = b; b = t; }
 
-bool intersectZ(float rayZMin, float rayZMax, float sceneZMax)
+bool intersectDepth(float zA, float zB, vec2 uv)
 {
-	return (rayZMax >= sceneZMax - rayZThickness) && (rayZMin <= sceneZMax) && (sceneZMax != 0.0);
+	float cameraZ = texelFetch(gPosition, ivec2(uv), 0).z;
+    return zB <= cameraZ && zA >= cameraZ - rayZThickness;
 }
 
 bool traceSSRay(vec3 rayOrigin, vec3 rayDirection, float jitter, 
@@ -205,89 +191,59 @@ bool traceSSRay(vec3 rayOrigin, vec3 rayDirection, float jitter,
 	P0 += dP * jitter;
 	Q0 += dQ * jitter;
 	k0 += dk * jitter;
-	
-	// Slide P from P0 to P1, (now-homogeneous) Q from Q0 to Q1, and k from k0 to k1
-    vec3 Q = Q0;
-    vec4 PQk = vec4(P0, Q0.z, k0);
-    vec4 dPQk = vec4(dP, dQ.z, dk);
-	
-	// We track the ray depth at +/- 1/2 pixel to treat pixels as clip-space solid 
-	// voxels. Because the depth at -1/2 for a given pixel will be the same as at 
-	// +1/2 for the previous iteration, we actually only have to compute one value 
-	// per iteration.
-	float prevZMaxEstimate = rayOrigin.z;
-    float stepCount = 0.0;
-    float rayZMax = prevZMaxEstimate;
-	float rayZMin = prevZMaxEstimate;
-    float sceneZMax = rayZMax + 1e4;
 
-    // P1.x is never modified after this point, so pre-scale it by 
-    // the step direction for a signed comparison
-    float end = P1.x * stepDirection;
-
-	// Ray-depth intersection test
+	float iter, zA = 0.0, zB = 0.0;
+	
+	// Track ray step and derivatives in a float4 to parallelize
+	vec4 pqk = vec4(P0, Q0.z, k0);
+	vec4 dPQK = vec4(dP, dQ.z, dk);
 	bool intersect = false;
 	
-    // We only advance the z field of Q in the inner loop, since
-    // Q.xy is never used until after the loop terminates.
-	for (;
-		(PQk.x * stepDirection) <= end && 
-		(stepCount < maxSteps) && !intersect;
-        PQk += dPQk, stepCount++)
+	for (iter = 0; iter < maxSteps && !intersect; iter++)
 	{
-		hitPixel = permute ? PQk.yx : PQk.xy;
-
-        // The depth range that the ray covers within this loop
-        // iteration.  Assume that the ray is moving in increasing z
-        // and swap if backwards.  Because one end of the interval is
-        // shared between adjacent iterations, we track the previous
-        // value and then swap as needed to ensure correct ordering
-        rayZMin = prevZMaxEstimate;
-
-        // Compute the value at 1/2 pixel into the future
-        rayZMax = (dPQk.z * 0.5 + PQk.z) / (dPQk.w * 0.5 + PQk.w);
-		prevZMaxEstimate = rayZMax;
-        if (rayZMin > rayZMax) { swap(rayZMin, rayZMax); }
-
-        // Camera-space z of the background
-        sceneZMax = texelFetch(gPosition, ivec2(hitPixel), 0).z;
-
-		intersect = intersectZ(rayZMin, rayZMax, sceneZMax);
-    } // pixel on ray
+		pqk += dPQK;
+		
+		zA = zB;
+		zB = (dPQK.z * 0.5 + pqk.z) / (dPQK.w * 0.5 + pqk.w);
+		if (zB > zA) swap(zB, zA);
+		
+		hitPixel = permute ? pqk.yx : pqk.xy;
+		
+		intersect = intersectDepth(zA, zB, hitPixel);
+	}
 	
 	// Binary search refinement
-	/*if (binarySearchSteps > 0.0 && pixelStride > 1.0 && intersect)
+	if (binarySearchSteps > 0.0 && pixelStride > 1.0 && intersect)
 	{
-		PQk -= dPQk;
-		dPQk /= pixelStride;
+		pqk -= dPQK;
+		dPQK /= pixelStride;
 		
 		float originalStride = pixelStride * 0.5;
-		float currentStride = originalStride;
+		float stride = originalStride;
 		
-		prevZMaxEstimate = PQk.z / PQk.w;
+		zA = pqk.z / pqk.w;
+		zB = zA;
 		
 		for (float j = 0; j < binarySearchSteps; j++)
 		{
-			PQk += dPQk * currentStride;
+			pqk += dPQK * stride;
 			
-			rayZMin = prevZMaxEstimate;
-			rayZMax = (dPQk.z * -0.5 + PQk.z) / (dPQk.w * -0.5 + PQk.w);
-			prevZMaxEstimate = rayZMax;
-			if (rayZMin > rayZMax) { swap(rayZMin, rayZMax); }
-
-			hitPixel = permute ? PQk.yx : PQk.xy;
-			sceneZMax = texelFetch(gPosition, ivec2(hitPixel), 0).z;
+			zA = zB;
+			zB = (dPQK.z * -0.5 + pqk.z) / (dPQK.w * -0.5 + pqk.w);
+			if (zB > zA) swap(zB, zA);
+			
+			hitPixel = permute ? pqk.yx : pqk.xy;
 			
 			originalStride *= 0.5;
-			currentStride = intersectZ(rayZMin, rayZMax, sceneZMax) ? -originalStride : originalStride;
+			stride = intersectDepth(zA, zB, hitPixel) ? -originalStride : originalStride;
 		}
-	}*/
+	}
 
-	//Q0.z = PQk.z;
-    Q.xy += dQ.xy * stepCount;
-	hitPoint = Q / PQk.w;
-
-    // Matches the new loop condition:
+    Q0.xy += dQ.xy * iter;
+	Q0.z = pqk.z;
+	hitPoint = Q0 / pqk.w;
+	steps = iter;
+	
     return intersect;
 }
 
@@ -341,7 +297,6 @@ void main()
 	vec2 uv2 = TexCoord * bufferSize;
 	float c = (uv2.x + uv2.y) * 0.25;
 	float jitter = mod(c, 1.0);
-	jitter = 1;
 	
 	bool intersect = traceSSRay(rayOrigin, rayDirection, jitter, hitPixel, hitPoint, steps);
 	float alpha = 0.0;
@@ -351,9 +306,14 @@ void main()
 		hitPixel = hitPixel * texelSize;
 		alpha = SSRayAlpha(steps, 1.0, hitPixel, hitPoint, rayOrigin, rayDirection);
 		
+		vec3 irradiance = texture(prefilterMap, mat3(viewInverse) * rayDirection).rgb;
 		vec3 reflectedColor = texture(inColor, hitPixel).rgb;
+		//if (hitPoint.z > position.z) reflectedColor = texture(dsColor, hitPixel).rgb;
+		
 		
 		finalColor.rgb = reflectedColor;
+		//finalColor.rgb = mix(color.rgb, reflectedColor, alpha);
+		//finalColor.rgb = vec3(irradiance);
 	}
 	
 	outColor = vec4(finalColor, alpha);

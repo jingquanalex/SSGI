@@ -32,6 +32,7 @@ Timer::Timer(float interval, float duration)
 	this->tickInterval = interval;
 	this->tickDuration = durationLeft = duration;
 	listTimers.push_back(this);
+	this->start();
 }
 
 Timer::~Timer()

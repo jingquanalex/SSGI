@@ -9,7 +9,7 @@ class CameraFPS : public Camera
 private:
 
 	float yaw, pitch;
-	float moveSpeed;
+	float moveSpeed, prevMoveSpeed;
 
 	bool stateLookAround = false;
 	bool stateForward = false, stateBackward = false, 

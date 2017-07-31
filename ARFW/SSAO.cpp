@@ -223,7 +223,7 @@ void SSAO::drawCombined(GLuint colorMapId)
 
 float SSAO::normpdf(float x, float s)
 {
-	return 0.3989422f * exp(-x * x / (2.0f * s * s)) / s;
+	return 1 / (s * s * 2 * 3.14159265f) * exp(-x * x / (2 * s * s)) / s;
 }
 
 void SSAO::computeBlurKernel()

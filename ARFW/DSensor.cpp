@@ -18,6 +18,43 @@ DSensor::~DSensor()
 	}
 }
 
+void DSensor::initializeShaders()
+{
+	temporalMedianShader->apply();
+	glUniform1i(glGetUniformLocation(temporalMedianShader->getShaderId(), "dsColor"), 0);
+	glUniform1i(glGetUniformLocation(temporalMedianShader->getShaderId(), "dsDepth"), 1);
+	glUniform1i(glGetUniformLocation(temporalMedianShader->getShaderId(), "kernelRadius"), tmfKernelRadius);
+	glUniform1i(glGetUniformLocation(temporalMedianShader->getShaderId(), "frameLayers"), tmfFrameLayers);
+
+	medianShader->apply();
+	glUniform1i(glGetUniformLocation(medianShader->getShaderId(), "dsColor"), 0);
+	glUniform1i(glGetUniformLocation(medianShader->getShaderId(), "dsDepth"), 1);
+	glUniform1i(glGetUniformLocation(medianShader->getShaderId(), "kernelRadius"), fillKernelRadius);
+
+	setBlurKernelRadius(blurKernelRadius);
+	blurShader->apply();
+	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "dsColor"), 0);
+	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "dsDepth"), 1);
+	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "kernelRadius"), blurKernelRadius);
+	glUniform1fv(glGetUniformLocation(blurShader->getShaderId(), "kernel"), blurKernelRadius * 2 + 1, &blurKernel[0]);
+
+	positionShader->apply();
+	glUniform1i(glGetUniformLocation(positionShader->getShaderId(), "dsColor"), 0);
+	glUniform1i(glGetUniformLocation(positionShader->getShaderId(), "dsDepth"), 1);
+}
+
+void DSensor::recompileShaders()
+{
+	if (hasError) return;
+
+	temporalMedianShader->recompile();
+	medianShader->recompile();
+	blurShader->recompile();
+	positionShader->recompile();
+	
+	initializeShaders();
+}
+
 void DSensor::initialize(int windowWidth, int windowHeight)
 {
 	printf("Initializing OpenNI:\n");
@@ -178,7 +215,7 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 	medianShader = new Shader("dsMedian");
 	positionShader = new Shader("dsPosition");
 	blurShader = new Shader("dsBlur");
-	recompileShaders();
+	initializeShaders();
 	
 	glGenFramebuffers(1, &fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -262,38 +299,6 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, outNormalMap2, 0);
 
 	glDrawBuffers(4, attachments);
-}
-
-void DSensor::recompileShaders()
-{
-	if (hasError) return;
-
-	temporalMedianShader->recompile();
-	temporalMedianShader->apply();
-	glUniform1i(glGetUniformLocation(temporalMedianShader->getShaderId(), "dsColor"), 0);
-	glUniform1i(glGetUniformLocation(temporalMedianShader->getShaderId(), "dsDepth"), 1);
-	glUniform1i(glGetUniformLocation(temporalMedianShader->getShaderId(), "kernelRadius"), tmfKernelRadius);
-	glUniform1i(glGetUniformLocation(temporalMedianShader->getShaderId(), "frameLayers"), tmfFrameLayers);
-
-	medianShader->recompile();
-	medianShader->apply();
-	glUniform1i(glGetUniformLocation(medianShader->getShaderId(), "dsColor"), 0);
-	glUniform1i(glGetUniformLocation(medianShader->getShaderId(), "dsDepth"), 1);
-	glUniform1i(glGetUniformLocation(medianShader->getShaderId(), "kernelRadius"), fillKernelRadius);
-
-	setBlurKernelRadius(blurKernelRadius);
-	blurShader->recompile();
-	blurShader->apply();
-	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "dsColor"), 0);
-	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "dsDepth"), 1);
-	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "kernelRadius"), blurKernelRadius);
-	glUniform1fv(glGetUniformLocation(blurShader->getShaderId(), "kernel"), blurKernelRadius * 2 + 1, &blurKernel[0]);
-	glUniform1f(glGetUniformLocation(blurShader->getShaderId(), "sigma"), blurSigma);
-	
-	positionShader->recompile();
-	positionShader->apply();
-	glUniform1i(glGetUniformLocation(positionShader->getShaderId(), "dsColor"), 0);
-	glUniform1i(glGetUniformLocation(positionShader->getShaderId(), "dsDepth"), 1);
 }
 
 void DSensor::update()
@@ -627,7 +632,7 @@ void DSensor::setFillPasses(int value)
 
 float DSensor::normpdf(float x, float s)
 {
-	return 0.3989422f * exp(-x * x / (2.0f * s * s)) / s;
+	return 1 / (s * s * 2 * 3.14159265f) * exp(-x * x / (2 * s * s)) / s;
 }
 
 void DSensor::computeBlurKernel()
@@ -643,7 +648,6 @@ void DSensor::computeBlurKernel()
 	blurShader->apply();
 	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "kernelRadius"), blurKernelRadius);
 	glUniform1fv(glGetUniformLocation(blurShader->getShaderId(), "kernel"), blurKernelRadius * 2 + 1, &blurKernel[0]);
-	glUniform1f(glGetUniformLocation(blurShader->getShaderId(), "sigma"), blurSigma);
 }
 
 void DSensor::setBlurKernelRadius(int value)

@@ -19,8 +19,8 @@ PBR::~PBR()
 void PBR::precomputeEnvMaps(GLuint& envMap, GLuint& irrMap, GLuint& prefilterMap, GLuint& brdfLUT)
 {
 	// Load and convert HDR equirectangular map to cubemap texture
-	const int captureWidth = 512;
-	const int captureHeight = 512;
+	const int captureWidth = 1024;
+	const int captureHeight = 1024;
 	unsigned int captureFBO;
 	unsigned int captureRBO;
 	glGenFramebuffers(1, &captureFBO);
@@ -41,7 +41,7 @@ void PBR::precomputeEnvMaps(GLuint& envMap, GLuint& irrMap, GLuint& prefilterMap
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
@@ -79,8 +79,8 @@ void PBR::precomputeEnvMaps(GLuint& envMap, GLuint& irrMap, GLuint& prefilterMap
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	//glBindTexture(GL_TEXTURE_CUBE_MAP, envMap);
-	//glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, envMap);
+	glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
 	// pbr: create an irradiance cubemap, and re-scale capture FBO to irradiance scale.
 	const int irrdianceWidth = 32;
@@ -123,8 +123,8 @@ void PBR::precomputeEnvMaps(GLuint& envMap, GLuint& irrMap, GLuint& prefilterMap
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	// pbr: create a pre-filter cubemap, and re-scale capture FBO to pre-filter scale.
-	const int prefilterWidth = 128;
-	const int prefilterHeight = 128;
+	const int prefilterWidth = 1024;
+	const int prefilterHeight = 1024;
 	glGenTextures(1, &prefilterMap);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
 	for (unsigned int i = 0; i < 6; ++i)

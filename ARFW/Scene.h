@@ -10,6 +10,7 @@
 #include "DSensor.h"
 #include "PBR.h"
 #include "PointCloud.h"
+#include "SSReflection.h"
 
 #include <random>
 
@@ -41,7 +42,7 @@ private:
 	std::vector<glm::vec3>* customPositions = nullptr;
 	std::vector<glm::vec3>* customNormals = nullptr;
 	std::vector<float> customRandoms;
-	int runAfterFrames = 10, runAfterFramesCounter = 0;
+	Timer* timerRunOnceOnStart;
 
 	GLuint uniform_CamMat;
 	int renderMode = 1;
@@ -49,6 +50,7 @@ private:
 	nanogui::Screen* guiScreen = nullptr;
 	nanogui::FormHelper *gui = nullptr;
 	nanogui::ref<nanogui::Window> nanoguiWindow = nullptr;
+	nanogui::ref<nanogui::Window> nanoguiWindow2 = nullptr;
 
 	DSensor* sensor = nullptr;
 
@@ -65,11 +67,12 @@ private:
 
 	Shader* compositeShader;
 	GLuint captureFBO;
+	GLuint cLighting;
 	GLuint cFullScene;
 	GLuint cBackScene;
 
-	Shader* ssReflectionPassShader;
-	GLuint cLighting;
+	SSReflection* ssr;
+	
 
 	PointCloud* pointCloud;
 
