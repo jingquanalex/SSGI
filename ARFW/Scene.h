@@ -24,7 +24,8 @@ private:
 
 	GLuint gBuffer, gComposeBuffer;
 	GLuint gPosition, gNormal, gColor, gDepth;
-	GLuint gComposedPosition, gComposedNormal, gComposedColor, gComposedDepth;
+	GLuint gComposedPosition, gComposedNormal, gComposedColor;
+	GLuint dsPosition, dsNormal, dsColor;
 	Shader* gPassShader = nullptr;
 	Shader* lightingPassShader = nullptr;
 	Shader* gComposePassShader = nullptr;

@@ -43,7 +43,8 @@ in vec2 TexCoord;
 in vec3 RayDirection;
 in mat4 ProjectionTexture;
 
-layout (location = 0) out vec4 outColor;
+layout (location = 0) out vec4 outRay;
+layout (location = 1) out vec4 outColorTest;
 
 layout (std140, binding = 9) uniform MatCam
 {
@@ -60,8 +61,6 @@ uniform vec2 texelSize = 1.0 / vec2(1920, 1080);
 
 uniform sampler2D gPosition;
 uniform sampler2D gNormal;
-uniform sampler2D inColor;
-uniform sampler2D dsColor;
 
 
 // Screen Space Raytracing, Morgan McGuire and Michael Mara
@@ -117,6 +116,7 @@ uniform float nearPlaneZ = -0.01;
 uniform float rayZThickness = 0.002;
 uniform float stride = 3;
 uniform float strideZCutoff = 2.5;
+uniform float jitterFactor = 0.5;
 
 uniform float screenEdgeFadeStart = 0.8;
 uniform float cameraFadeStart = 0.01;
@@ -188,14 +188,14 @@ bool traceSSRay(vec3 rayOrigin, vec3 rayDirection, float jitter,
     float stepDirection = sign(delta.x);
     float invdx = stepDirection / delta.x;
 	
-    // Track the derivatives of Q and k
-    vec3 dQ = (Q1 - Q0) * invdx;
-    float dk = (k1 - k0) * invdx;
 	vec2 dP = vec2(stepDirection, invdx * delta.y);
+    vec3 dQ = (Q1 - Q0) * invdx; // Track the derivatives of Q and k
+    float dk = (k1 - k0) * invdx;
 	
     // Scale derivatives by the desired pixel stride
 	float strideScale = 1.0 - min(1.0, rayOrigin.z * strideZCutoff);
     float pixelStride = 1.0 + strideScale * stride;
+	if (strideZCutoff == 0.0) pixelStride = stride;
 	
 	dP *= pixelStride;
 	dQ *= pixelStride;
@@ -210,6 +210,9 @@ bool traceSSRay(vec3 rayOrigin, vec3 rayDirection, float jitter,
     vec3 Q = Q0;
     vec4 PQk = vec4(P0, Q0.z, k0);
     vec4 dPQk = vec4(dP, dQ.z, dk);
+	/*PQk -= dPQk;
+	dPQk /= 2;
+	PQk += dPQk;*/
 	
 	// We track the ray depth at +/- 1/2 pixel to treat pixels as clip-space solid 
 	// voxels. Because the depth at -1/2 for a given pixel will be the same as at 
@@ -256,42 +259,46 @@ bool traceSSRay(vec3 rayOrigin, vec3 rayDirection, float jitter,
     } // pixel on ray
 	
 	// Binary search refinement
-	/*if (binarySearchSteps > 0.0 && pixelStride > 1.0 && intersect)
+	if (binarySearchSteps > 0.0 && pixelStride > 1.0 && intersect)
 	{
+		// Step back one step and half the delta
 		PQk -= dPQk;
-		dPQk /= pixelStride;
+		dPQk /= 2;
 		
-		float originalStride = pixelStride * 0.5;
-		float currentStride = originalStride;
-		
+		float intersectCount = 0;
 		prevZMaxEstimate = PQk.z / PQk.w;
 		
-		for (float j = 0; j < binarySearchSteps; j++)
+		// Step forward until hit, then step back and half the delta
+		for (float i = 0; i < binarySearchSteps; PQk += dPQk, i++)
 		{
-			PQk += dPQk * currentStride;
+			hitPixel = permute ? PQk.yx : PQk.xy;
 			
 			rayZMin = prevZMaxEstimate;
-			rayZMax = (dPQk.z * -0.5 + PQk.z) / (dPQk.w * -0.5 + PQk.w);
+			rayZMax = (dPQk.z * 0.5 + PQk.z) / (dPQk.w * 0.5 + PQk.w);
 			prevZMaxEstimate = rayZMax;
 			if (rayZMin > rayZMax) { swap(rayZMin, rayZMax); }
-
-			hitPixel = permute ? PQk.yx : PQk.xy;
+		
 			sceneZMax = texelFetch(gPosition, ivec2(hitPixel), 0).z;
 			
-			originalStride *= 0.5;
-			currentStride = intersectZ(rayZMin, rayZMax, sceneZMax) ? -originalStride : originalStride;
+			bool newIntersect = intersectZ(rayZMin, rayZMax, sceneZMax);
+			if (newIntersect)
+			{
+				PQk -= dPQk;
+				dPQk /= 2;
+			}
 		}
-	}*/
+	}
 
 	//Q0.z = PQk.z;
     Q.xy += dQ.xy * stepCount;
 	hitPoint = Q / PQk.w;
+	hitPixel = hitPixel * texelSize;
 
     // Matches the new loop condition:
     return intersect;
 }
 
-float SSRayAlpha(float steps, float specularStrength, vec2 hitPixel, vec3 hitPoint, 
+float SSRayAlpha(float steps, float specularStrength, vec2 hitCoord, vec3 hitPoint, 
 	vec3 vsRayOrigin, vec3 vsRayDirection)
 {
 	float alpha = min(1.0, specularStrength * 1.0);
@@ -301,8 +308,8 @@ float SSRayAlpha(float steps, float specularStrength, vec2 hitPixel, vec3 hitPoi
 	
 	// Fade ray hits that approach the screen edge
 	float screenFade = screenEdgeFadeStart;
-	vec2 hitPixelNDC = hitPixel * 2.0 - 1.0;
-	float maxDimension = min(1.0, max(abs(hitPixelNDC.x), abs(hitPixelNDC.y)));
+	vec2 hitCoordNDC = hitCoord * 2.0 - 1.0;
+	float maxDimension = min(1.0, max(abs(hitCoordNDC.x), abs(hitCoordNDC.y)));
 	alpha *= 1.0 - (max(0.0, maxDimension - screenFade) / (1.0 - screenFade));
 	
 	// Fade ray hits base on how much they face the camera
@@ -319,6 +326,51 @@ float SSRayAlpha(float steps, float specularStrength, vec2 hitPixel, vec3 hitPoi
 	return alpha;
 }
 
+uniform float roughness = 0.99;
+uniform sampler2D inColor;
+
+const float PI = 3.14159265359;
+// ----------------------------------------------------------------------------
+// http://holger.dammertz.org/stuff/notes_HammersleyOnHemisphere.html
+// efficient VanDerCorpus calculation.
+float RadicalInverse_VdC(uint bits) 
+{
+     bits = (bits << 16u) | (bits >> 16u);
+     bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+     bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+     bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+     bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+     return float(bits) * 2.3283064365386963e-10; // / 0x100000000
+}
+// ----------------------------------------------------------------------------
+vec2 Hammersley(uint i, uint N)
+{
+	return vec2(float(i) / float(N), RadicalInverse_VdC(i));
+}
+// ----------------------------------------------------------------------------
+vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness)
+{
+	float a = roughness * roughness;
+	
+	float phi = 2.0 * PI * Xi.x;
+	float cosTheta = sqrt((1.0 - Xi.y) / (1.0 + (a * a - 1.0) * Xi.y));
+	float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
+	
+	// from spherical coordinates to cartesian coordinates - halfway vector
+	vec3 H;
+	H.x = cos(phi) * sinTheta;
+	H.y = sin(phi) * sinTheta;
+	H.z = cosTheta;
+	
+	// from tangent-space H vector to normal's space
+	vec3 up        = abs(N.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+	vec3 tangent   = normalize(cross(up, N));
+	vec3 bitangent = cross(N, tangent);
+	
+	vec3 sampleVec = tangent * H.x + bitangent * H.y + N * H.z;
+	return normalize(sampleVec);
+}
+// ----------------------------------------------------------------------------
 
 // Main
 
@@ -326,35 +378,49 @@ void main()
 {
 	vec3 position = texture(gPosition, TexCoord).xyz;
     vec3 normal = texture(gNormal, TexCoord).xyz;
-    vec4 color = texture(inColor, TexCoord);
-	
-	vec3 finalColor = vec3(0);
 	
 	// Screen space reflections
 	vec3 rayOrigin = position;
 	vec3 rayDirection = normalize(reflect(normalize(position), normalize(normal)));
 	
-	vec2 hitPixel;
-	vec3 hitPoint;
+	vec2 hitCoord = vec2(0);
+	vec3 hitPoint = vec3(0);
 	float steps;
 	
-	vec2 uv2 = TexCoord * bufferSize;
-	float c = (uv2.x + uv2.y) * 0.25;
-	float jitter = mod(c, 1.0);
-	jitter = 1;
+	float rand = fract(sin(dot(TexCoord, vec2(12.9898, 78.233))) * 43758.5453);
+	float jitter = 1.0 + (rand - 0.5) * jitterFactor;
+	//if (stride == 1) jitter = 1;
 	
-	bool intersect = traceSSRay(rayOrigin, rayDirection, jitter, hitPixel, hitPoint, steps);
-	float alpha = 0.0;
+	bool intersect = traceSSRay(rayOrigin, rayDirection, jitter, hitCoord, hitPoint, steps);
 	
-	if (intersect)
-	{
-		hitPixel = hitPixel * texelSize;
-		alpha = SSRayAlpha(steps, 1.0, hitPixel, hitPoint, rayOrigin, rayDirection);
-		
-		vec3 reflectedColor = texture(inColor, hitPixel).rgb;
-		
-		finalColor.rgb = reflectedColor;
-	}
+	float hitZ = texture(gPosition, hitCoord).z;
+	float alpha = SSRayAlpha(steps, 1.0, hitCoord, hitPoint, rayOrigin, rayDirection);
 	
-	outColor = vec4(finalColor, alpha);
+	outRay = vec4(hitCoord, hitZ, alpha * float(intersect));
+	
+	// Ambient Occlusion
+	const uint SAMPLE_COUNT = 0;
+	vec3 totalColor = vec3(0);
+    float totalWeight = 0.0;
+	vec3 N = normal;
+    
+    for(uint i = 0; i < SAMPLE_COUNT; ++i)
+    {
+        vec2 Xi = Hammersley(i, SAMPLE_COUNT);
+        vec3 H = ImportanceSampleGGX(Xi, N, roughness);
+        
+		intersect = traceSSRay(rayOrigin, H, jitter, hitCoord, hitPoint, steps);
+		if (intersect)
+		{
+			totalColor += texture(inColor, hitCoord).rgb;
+			totalWeight += 1;
+		}
+    }
+
+	totalColor = totalColor / (totalWeight * 1);
+    float ao = 1.0 - totalWeight / SAMPLE_COUNT;
+	vec3 aoColor = totalColor * ao;
+	//ao = ao * alpha;
+
+	outColorTest = vec4(vec3(aoColor), float(intersect));
 }

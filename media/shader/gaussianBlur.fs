@@ -49,7 +49,6 @@ void main()
 	}
 	
 	vec4 finalColor = accumValue / accumWeight;
-	//finalColor.rgb = vec3(1,0,0);
 	
 	outColor = finalColor;
 }

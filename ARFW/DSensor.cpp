@@ -184,6 +184,11 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 	texColorMap = new openni::RGB888Pixel[texWidth * texHeight];
 	texDepthMap = new uint16_t[texWidth * texHeight];
 
+	//bufferWidth = windowWidth;
+	//bufferHeight = windowHeight;
+	bufferWidth = texWidth;
+	bufferHeight = texHeight;
+
 	device.setImageRegistrationMode(openni::IMAGE_REGISTRATION_DEPTH_TO_COLOR);
 
 	if (!hasError)
@@ -222,7 +227,7 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 
 	glGenTextures(1, &outColorMap);
 	glBindTexture(GL_TEXTURE_2D, outColorMap);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, bufferWidth, bufferHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -231,7 +236,7 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 
 	glGenTextures(1, &outDepthMap);
 	glBindTexture(GL_TEXTURE_2D, outDepthMap);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, texWidth, texHeight, 0, GL_RED, GL_UNSIGNED_SHORT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, bufferWidth, bufferHeight, 0, GL_RED, GL_UNSIGNED_SHORT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -240,23 +245,24 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 
 	glGenTextures(1, &outPositionMap);
 	glBindTexture(GL_TEXTURE_2D, outPositionMap);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, outPositionMap, 0);
 
 	glGenTextures(1, &outNormalMap);
 	glBindTexture(GL_TEXTURE_2D, outNormalMap);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, outNormalMap, 0);
 
-	const GLuint attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
+	const GLenum attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
 	glDrawBuffers(4, attachments);
 
 	glGenFramebuffers(1, &fbo2);
@@ -264,7 +270,7 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 
 	glGenTextures(1, &outColorMap2);
 	glBindTexture(GL_TEXTURE_2D, outColorMap2);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, bufferWidth, bufferHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -273,7 +279,7 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 
 	glGenTextures(1, &outDepthMap2);
 	glBindTexture(GL_TEXTURE_2D, outDepthMap2);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, texWidth, texHeight, 0, GL_RED, GL_UNSIGNED_SHORT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, bufferWidth, bufferHeight, 0, GL_RED, GL_UNSIGNED_SHORT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -282,16 +288,17 @@ void DSensor::initialize(int windowWidth, int windowHeight)
 
 	glGenTextures(1, &outPositionMap2);
 	glBindTexture(GL_TEXTURE_2D, outPositionMap2);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, outPositionMap2, 0);
 
 	glGenTextures(1, &outNormalMap2);
 	glBindTexture(GL_TEXTURE_2D, outNormalMap2);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -390,7 +397,7 @@ void DSensor::update()
 		// Filp kinect y textures
 		// Temporal median filter pass
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-		glViewport(0, 0, texWidth, texHeight);
+		glViewport(0, 0, bufferWidth, bufferHeight);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		temporalMedianShader->apply();
@@ -409,7 +416,7 @@ void DSensor::update()
 		for (int i = 0; i < fillPasses; i++)
 		{
 			glBindFramebuffer(GL_FRAMEBUFFER, currFbo);
-			glViewport(0, 0, texWidth, texHeight);
+			glViewport(0, 0, bufferWidth, bufferHeight);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 			medianShader->apply();
@@ -434,7 +441,7 @@ void DSensor::update()
 		for (int i = 0; i < 2; i++)
 		{
 			glBindFramebuffer(GL_FRAMEBUFFER, currFbo);
-			glViewport(0, 0, texWidth, texHeight);
+			glViewport(0, 0, bufferWidth, bufferHeight);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 			blurShader->apply();
@@ -455,7 +462,7 @@ void DSensor::update()
 
 		// Generate position and normal pass
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
-		glViewport(0, 0, texWidth, texHeight);
+		glViewport(0, 0, bufferWidth, bufferHeight);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		positionShader->apply();
@@ -506,14 +513,14 @@ void DSensor::getCustomPixelInfo(int sampleRadius, std::vector<glm::vec3>*& outP
 
 	// Get positions
 	glReadBuffer(GL_COLOR_ATTACHMENT2);
-	glm::vec2 sampleDiff = glm::vec2(texWidth, texHeight) / (sampleRadius * 2);
+	glm::vec2 sampleDiff = glm::vec2(bufferWidth, bufferHeight) / (sampleRadius * 2);
 
 	for (int i = -sampleRadius; i <= sampleRadius; i++)
 	{
 		for (int j = -sampleRadius; j <= sampleRadius; j++)
 		{
 			glm::vec3 out;
-			glReadPixels((int)((sampleDiff.x * i) / 1.5 + texWidth / 2), (int)((sampleDiff.y * j) / 1.5 + texHeight / 2), 1, 1, GL_RGB, GL_FLOAT, &out);
+			glReadPixels((int)((sampleDiff.x * i) / 1.5 + bufferWidth / 2), (int)((sampleDiff.y * j) / 1.5 + bufferHeight / 2), 1, 1, GL_RGB, GL_FLOAT, &out);
 			customPositions.push_back(out);
 		}
 	}
@@ -526,7 +533,7 @@ void DSensor::getCustomPixelInfo(int sampleRadius, std::vector<glm::vec3>*& outP
 		for (int j = -sampleRadius; j <= sampleRadius; j++)
 		{
 			glm::vec3 out;
-			glReadPixels((int)((sampleDiff.x * i) / 1.5 + texWidth / 2), (int)((sampleDiff.y * j) / 1.5 + texHeight / 2), 1, 1, GL_RGB, GL_FLOAT, &out);
+			glReadPixels((int)((sampleDiff.x * i) / 1.5 + bufferWidth / 2), (int)((sampleDiff.y * j) / 1.5 + bufferHeight / 2), 1, 1, GL_RGB, GL_FLOAT, &out);
 			customNormals.push_back(out);
 		}
 	}

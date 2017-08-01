@@ -20,6 +20,7 @@ private:
 	openni::VideoStream depthStream, colorStream;
 	openni::VideoStream** streams;
 	GLuint texWidth, texHeight;
+	GLuint bufferWidth, bufferHeight;
 	openni::RGB888Pixel* texColorMap;
 	uint16_t* texDepthMap;
 

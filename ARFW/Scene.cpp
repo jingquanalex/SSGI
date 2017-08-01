@@ -45,9 +45,9 @@ void Scene::initializeShaders()
 	glUniform1i(glGetUniformLocation(gComposePassShader->getShaderId(), "inPosition"), 0);
 	glUniform1i(glGetUniformLocation(gComposePassShader->getShaderId(), "inNormal"), 1);
 	glUniform1i(glGetUniformLocation(gComposePassShader->getShaderId(), "inColor"), 2);
-	glUniform1i(glGetUniformLocation(gComposePassShader->getShaderId(), "dsColor"), 3);
-	glUniform1i(glGetUniformLocation(gComposePassShader->getShaderId(), "dsPosition"), 4);
-	glUniform1i(glGetUniformLocation(gComposePassShader->getShaderId(), "dsNormal"), 5);
+	glUniform1i(glGetUniformLocation(gComposePassShader->getShaderId(), "dsPosition"), 3);
+	glUniform1i(glGetUniformLocation(gComposePassShader->getShaderId(), "dsNormal"), 4);
+	glUniform1i(glGetUniformLocation(gComposePassShader->getShaderId(), "dsColor"), 5);
 
 	lightingPassShader->apply();
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
@@ -204,7 +204,47 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	Eigen::Vector2i windowSize = nanoguiWindow->size();
 	nanoguiWindow2 = gui->addWindow(Eigen::Vector2i(250, 10), "More options");
 
-	gui->addGroup("SSReflections");
+	gui->addGroup("Screen Space Raytracing");
+	gui->addVariable<float>("maxSteps",
+		[&](const float &value) { ssr->setMaxSteps(value); },
+		[&]() { return ssr->getMaxSteps(); });
+	gui->addVariable<float>("binarySearchSteps",
+		[&](const float &value) { ssr->setBinarySearchSteps(value); },
+		[&]() { return ssr->getBinarySearchSteps(); });
+	gui->addVariable<float>("maxRayTraceDistance",
+		[&](const float &value) { ssr->setMaxRayTraceDistance(value); },
+		[&]() { return ssr->getMaxRayTraceDistance(); });
+	gui->addVariable<float>("nearPlaneZ",
+		[&](const float &value) { ssr->setNearPlaneZ(value); },
+		[&]() { return ssr->getNearPlaneZ(); });
+	gui->addVariable<float>("rayZThickness",
+		[&](const float &value) { ssr->setRayZThickness(value); },
+		[&]() { return ssr->getRayZThickness(); });
+	gui->addVariable<float>("stride",
+		[&](const float &value) { ssr->setStride(value); },
+		[&]() { return ssr->getStride(); });
+	gui->addVariable<float>("strideZCutoff",
+		[&](const float &value) { ssr->setStrideZCutoff(value); },
+		[&]() { return ssr->getStrideZCutoff(); });
+	gui->addVariable<float>("jitterFactor",
+		[&](const float &value) { ssr->setJitterFactor(value); },
+		[&]() { return ssr->getJitterFactor(); });
+
+	gui->addGroup("Alpha (fade ray sample)");
+	gui->addVariable<float>("screenEdgeFadeStart",
+		[&](const float &value) { ssr->setScreenEdgeFadeStart(value); },
+		[&]() { return ssr->setScreenEdgeFadeStart(); });
+	gui->addVariable<float>("cameraFadeStart",
+		[&](const float &value) { ssr->setCameraFadeStart(value); },
+		[&]() { return ssr->setCameraFadeStart(); });
+	gui->addVariable<float>("cameraFadeLength",
+		[&](const float &value) { ssr->setCameraFadeLength(value); },
+		[&]() { return ssr->setCameraFadeLength(); });
+
+	gui->addGroup("Light convolution");
+	gui->addVariable<int>("maxMipLevels",
+		[&](const int &value) { ssr->setMaxMipLevels(value); },
+		[&]() { return ssr->getMaxMipLevels(); });
 	gui->addVariable<int>("kernelRadius",
 		[&](const int &value) { ssr->setGaussianKernelRadius(value); },
 		[&]() { return ssr->getGaussianKernelRadius(); });
@@ -274,7 +314,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gDepth, 0);
 
-	const GLuint attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+	const GLenum attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
 	glDrawBuffers(3, attachments);
 
 	// Create buffers for gComposeBuffer pass
@@ -308,12 +348,51 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gComposedColor, 0);
 
-	glDrawBuffers(3, attachments);
+	// Output kinect ds textures again to make sure texture sampling are even
+	// Else differential rendering produces artifacts if lowres ds texture are directly used
+	glGenTextures(1, &dsPosition);
+	glBindTexture(GL_TEXTURE_2D, dsPosition);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, dsPosition, 0);
+
+	glGenTextures(1, &dsNormal);
+	glBindTexture(GL_TEXTURE_2D, dsNormal);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, dsNormal, 0);
+
+	glGenTextures(1, &dsColor);
+	glBindTexture(GL_TEXTURE_2D, dsColor);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, bufferWidth, bufferHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT5, GL_TEXTURE_2D, dsColor, 0);
+
+	const GLenum gComposeAttachments[6] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2,
+		GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5 };
+	glDrawBuffers(6, gComposeAttachments);
 
 	// Capture final outputs for differential rendering
 	compositeShader = new Shader("composite");
 
 	glGenFramebuffers(1, &captureFBO);
+
+	glGenTextures(1, &cLighting);
+	glBindTexture(GL_TEXTURE_2D, cLighting);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 	glGenTextures(1, &cFullScene);
 	glBindTexture(GL_TEXTURE_2D, cFullScene);
@@ -325,14 +404,6 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &cBackScene);
 	glBindTexture(GL_TEXTURE_2D, cBackScene);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-	glGenTextures(1, &cLighting);
-	glBindTexture(GL_TEXTURE_2D, cLighting);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -445,17 +516,17 @@ void Scene::render()
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, gColor);
 	glActiveTexture(GL_TEXTURE3);
-	glBindTexture(GL_TEXTURE_2D, sensor->getColorMapId());
-	glActiveTexture(GL_TEXTURE4);
 	glBindTexture(GL_TEXTURE_2D, sensor->getPositionMapId());
-	glActiveTexture(GL_TEXTURE5);
+	glActiveTexture(GL_TEXTURE4);
 	glBindTexture(GL_TEXTURE_2D, sensor->getNormalMapId());
+	glActiveTexture(GL_TEXTURE5);
+	glBindTexture(GL_TEXTURE_2D, sensor->getColorMapId());
 
 	quad->draw();
 
 	// Compute ssao for GBuffer and kinect inputs
 	ssao->drawLayer(1, gComposedPosition, gComposedNormal, gComposedColor);
-	ssao->drawLayer(2, sensor->getPositionMapId(), sensor->getNormalMapId(), sensor->getColorMapId());
+	ssao->drawLayer(2, dsPosition, dsNormal, dsColor);
 	ssao->drawCombined(gComposedColor);
 
 	
@@ -479,7 +550,7 @@ void Scene::render()
 	glBindTexture(GL_TEXTURE_2D, ssao->getTextureLayer(0));
 
 	glActiveTexture(GL_TEXTURE4);
-	glBindTexture(GL_TEXTURE_2D, sensor->getColorMapId());
+	glBindTexture(GL_TEXTURE_2D, dsColor);
 	glActiveTexture(GL_TEXTURE5);
 	glBindTexture(GL_TEXTURE_2D, sensor->getDepthMapId());
 
@@ -493,9 +564,10 @@ void Scene::render()
 	quad->draw();
 
 	
-	ssr->draw(gComposedPosition, gComposedNormal, cLighting, sensor->getColorMapId(), cFullScene);
+	ssr->draw(gComposedPosition, gComposedNormal, cLighting, dsColor, cFullScene);
 
 	// Differential rendering: Background (real) scene pass
+	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cLighting, 0);
 
 	// Lighting pass
@@ -505,16 +577,16 @@ void Scene::render()
 	lightingPassShader->apply();
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, sensor->getPositionMapId());
+	glBindTexture(GL_TEXTURE_2D, dsPosition);
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, sensor->getNormalMapId());
+	glBindTexture(GL_TEXTURE_2D, dsNormal);
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, sensor->getColorMapId());
+	glBindTexture(GL_TEXTURE_2D, dsColor);
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D, ssao->getTextureLayer(2));
 
 	glActiveTexture(GL_TEXTURE4);
-	glBindTexture(GL_TEXTURE_2D, sensor->getColorMapId());
+	glBindTexture(GL_TEXTURE_2D, dsColor);
 	glActiveTexture(GL_TEXTURE5);
 	glBindTexture(GL_TEXTURE_2D, sensor->getDepthMapId());
 
@@ -528,7 +600,7 @@ void Scene::render()
 	quad->draw();
 
 	// Screen space reflection pass
-	ssr->draw(gComposedPosition, gComposedNormal, cLighting, sensor->getColorMapId(), cBackScene);
+	ssr->draw(dsPosition, dsNormal, cLighting, dsColor, cBackScene);
 
 
 	// Combine the differential rendering textures
@@ -544,7 +616,7 @@ void Scene::render()
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, cBackScene);
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, sensor->getColorMapId());
+	glBindTexture(GL_TEXTURE_2D, dsColor);
 
 	quad->draw();
 
