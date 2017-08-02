@@ -10,7 +10,6 @@ uniform sampler2D inNormal;
 uniform int isVertical = 0;
 uniform float kernel[128];
 uniform int kernelRadius = 3;
-uniform float sigma = 10;
 uniform float bsigma = 0.1;
 
 float normpdf(float x, float s)

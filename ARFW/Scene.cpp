@@ -90,7 +90,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	plane = new Object();
 	plane->setGPassShaderId(gPassShader->getShaderId());
 	plane->setPosition(vec3(0.0f, -0.2f, -0.3f));
-	plane->setScale(vec3(0.2f, 0.2f, 0.2f));
+	plane->setScale(vec3(0.5f, 0.2f, 0.5f));
 	plane->load("cube/cube.obj");
 	dragon = new Object();
 	dragon->setGPassShaderId(gPassShader->getShaderId());
@@ -251,6 +251,14 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	gui->addVariable<float>("sigma",
 		[&](const float &value) { ssr->setGaussianSigma(value); },
 		[&]() { return ssr->getGaussianSigma(); });
+	gui->addVariable<float>("bSigma",
+		[&](const float &value) { ssr->setGaussianBSigma(value); },
+		[&]() { return ssr->getGaussianBSigma(); });
+
+	gui->addGroup("Cone trace reflections");
+	gui->addVariable<int>("mipLevel",
+		[&](const int &value) { ssr->setConeTraceMipLevel(value); },
+		[&]() { return ssr->getConeTraceMipLevel(); });
 	
 	guiScreen->setVisible(true);
 	guiScreen->performLayout();
@@ -564,7 +572,7 @@ void Scene::render()
 	quad->draw();
 
 	
-	ssr->draw(gComposedPosition, gComposedNormal, cLighting, dsColor, cFullScene);
+	ssr->draw(gComposedPosition, gComposedNormal, cLighting, dsColor, irradianceMap, cFullScene);
 
 	// Differential rendering: Background (real) scene pass
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
@@ -600,7 +608,7 @@ void Scene::render()
 	quad->draw();
 
 	// Screen space reflection pass
-	ssr->draw(dsPosition, dsNormal, cLighting, dsColor, cBackScene);
+	ssr->draw(dsPosition, dsNormal, cLighting, dsColor, irradianceMap, cBackScene);
 
 
 	// Combine the differential rendering textures

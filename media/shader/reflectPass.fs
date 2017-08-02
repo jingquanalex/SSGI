@@ -43,8 +43,8 @@ in vec2 TexCoord;
 in vec3 RayDirection;
 in mat4 ProjectionTexture;
 
-layout (location = 0) out vec4 outRay;
-layout (location = 1) out vec4 outColorTest;
+layout (location = 0) out vec4 outReflection;
+layout (location = 1) out vec4 outAmbientOcclusion;
 
 layout (std140, binding = 9) uniform MatCam
 {
@@ -328,6 +328,7 @@ float SSRayAlpha(float steps, float specularStrength, vec2 hitCoord, vec3 hitPoi
 
 uniform float roughness = 0.99;
 uniform sampler2D inColor;
+uniform samplerCube irradianceMap;
 
 const float PI = 3.14159265359;
 // ----------------------------------------------------------------------------
@@ -392,13 +393,14 @@ void main()
 	//if (stride == 1) jitter = 1;
 	
 	bool intersect = traceSSRay(rayOrigin, rayDirection, jitter, hitCoord, hitPoint, steps);
-	
-	float hitZ = texture(gPosition, hitCoord).z;
 	float alpha = SSRayAlpha(steps, 1.0, hitCoord, hitPoint, rayOrigin, rayDirection);
 	
-	outRay = vec4(hitCoord, hitZ, alpha * float(intersect));
+	vec3 reflectedColor = texture(inColor, hitCoord).rgb;
+	
+	outReflection = vec4(reflectedColor, alpha * float(intersect));
 	
 	// Ambient Occlusion
+	// Cast cosine distributed samples on a hemisphere for each fragment
 	const uint SAMPLE_COUNT = 0;
 	vec3 totalColor = vec3(0);
     float totalWeight = 0.0;
@@ -410,17 +412,28 @@ void main()
         vec3 H = ImportanceSampleGGX(Xi, N, roughness);
         
 		intersect = traceSSRay(rayOrigin, H, jitter, hitCoord, hitPoint, steps);
+		
+		// No occlusion contribution from rays facing camera
+		vec3 rayDir = normalize(hitPoint - position);
+		if (dot(normalize(position), rayDir) < -0.99) intersect = false;
+		
 		if (intersect)
 		{
 			totalColor += texture(inColor, hitCoord).rgb;
 			totalWeight += 1;
 		}
+		else
+		{
+			vec3 worldH = (viewInverse * vec4(H, 1)).xyz;
+			vec3 irradiance = texture(irradianceMap, worldH).rgb;
+			totalColor += irradiance;
+		}
     }
 
-	totalColor = totalColor / (totalWeight * 1);
+	totalColor = totalColor / SAMPLE_COUNT;
     float ao = 1.0 - totalWeight / SAMPLE_COUNT;
 	vec3 aoColor = totalColor * ao;
 	//ao = ao * alpha;
 
-	outColorTest = vec4(vec3(aoColor), float(intersect));
+	outAmbientOcclusion = vec4(vec3(aoColor), float(intersect));
 }

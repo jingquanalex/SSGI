@@ -3,22 +3,34 @@
 in vec2 TexCoord;
 
 layout (location = 0) out vec4 outColor;
+layout (location = 1) out vec4 outColor2;
 
 uniform sampler2D inColor;
+uniform sampler2D inColor2;
+uniform sampler2D inNormal;
 
 uniform int isVertical = 0;
-uniform int kernelRadius = 3;
-uniform float kernel[128];
 uniform int mipLevel = 0;
+uniform float kernel[128];
+uniform int kernelRadius = 3;
+uniform float bsigma = 0.1;
 
+float normpdf(float x, float s)
+{
+	return 1 / (s * s * 2 * 3.14159265f) * exp(-x * x / (2.0 * s * s)) / s;
+}
+
+// Cross bilateral blur the light buffers
 void main()
 {
-	int miplevel = mipLevel;
-	vec4 color = textureLod(inColor, TexCoord, miplevel);
+	int mip = mipLevel;
 	
-	if (miplevel == 0)
+	if (mip == 0)
 	{
+		vec4 color = textureLod(inColor, TexCoord, mip);
+		vec4 color2 = textureLod(inColor2, TexCoord, mip);
 		outColor = color;
+		outColor2 = color2;
 		return;
 	}
 	
@@ -31,24 +43,35 @@ void main()
 	else
 	{
 		texelSize = vec2(texelSize.x, 0);
-		miplevel = miplevel - 1;
+		mip = mip - 1;
 	}
+	
+	vec3 normal = texture(inNormal, TexCoord).rgb;
 	
 	// Gaussian filter
 	vec4 accumValue = vec4(0);
+	vec4 accumValue2 = vec4(0);
 	float accumWeight = 0;
 	
 	for (int i = -kernelRadius; i <= kernelRadius; i++)
 	{
 		vec2 sampleCoord = TexCoord + i * texelSize;
-		vec4 sampleValue = textureLod(inColor, sampleCoord, miplevel);
-		float sampleWeight = kernel[kernelRadius + i];
+		vec4 sampleValue = textureLod(inColor, sampleCoord, mip);
+		vec3 sampleNormal = texture(inNormal, sampleCoord).rgb;
+		vec3 distv = normal - sampleNormal;
+		float sampleWeight = normpdf(dot(distv, distv), bsigma) * kernel[kernelRadius + i];
+		//float sampleWeight = kernel[kernelRadius + i];
 		
 		accumValue += sampleValue * sampleWeight;
 		accumWeight += sampleWeight;
+		
+		vec4 sampleValue2 = textureLod(inColor2, sampleCoord, mip);
+		accumValue2 += sampleValue2 * sampleWeight;
 	}
 	
 	vec4 finalColor = accumValue / accumWeight;
+	vec4 finalColor2 = accumValue2 / accumWeight;
 	
 	outColor = finalColor;
+	outColor2 = finalColor2;
 }
