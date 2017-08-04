@@ -26,15 +26,14 @@ private:
 	float gaussianSigma = 5.0f;
 	float gaussianBSigma = 0.1f;
 
-
-	int coneTraceMipLevel = 0;
+	float coneTraceMipLevel = 0;
 	
 	Quad* quad;
 	Shader* ssReflectionPassShader;
 	Shader* gaussianBlurShader;
 	Shader* coneTraceShader;
 	GLuint fbo;
-	GLuint cReflection, cAmbientOcclusion;
+	GLuint cReflection, cReflectionRay, cAmbientOcclusion;
 	GLuint cLightFilterH, cLightFilterV;
 	GLuint cLightFilterH2, cLightFilterV2;
 	std::vector<float> gaussianKernel;
@@ -69,7 +68,7 @@ public:
 	void setGaussianKernelRadius(int value);
 	void setGaussianSigma(float value);
 	void setGaussianBSigma(float value);
-	void setConeTraceMipLevel(int value);
+	void setConeTraceMipLevel(float value);
 
 	float getMaxSteps() const;
 	float getBinarySearchSteps() const;
@@ -86,5 +85,5 @@ public:
 	int getGaussianKernelRadius() const;
 	float getGaussianSigma() const;
 	float getGaussianBSigma() const;
-	int getConeTraceMipLevel() const;
+	float getConeTraceMipLevel() const;
 };

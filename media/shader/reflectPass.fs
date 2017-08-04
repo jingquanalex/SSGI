@@ -44,7 +44,8 @@ in vec3 RayDirection;
 in mat4 ProjectionTexture;
 
 layout (location = 0) out vec4 outReflection;
-layout (location = 1) out vec4 outAmbientOcclusion;
+layout (location = 1) out vec4 outReflectionRay;
+layout (location = 2) out vec4 outAmbientOcclusion;
 
 layout (std140, binding = 9) uniform MatCam
 {
@@ -289,7 +290,6 @@ bool traceSSRay(vec3 rayOrigin, vec3 rayDirection, float jitter,
 		}
 	}
 
-	//Q0.z = PQk.z;
     Q.xy += dQ.xy * stepCount;
 	hitPoint = Q / PQk.w;
 	hitPixel = hitPixel * texelSize;
@@ -394,10 +394,14 @@ void main()
 	
 	bool intersect = traceSSRay(rayOrigin, rayDirection, jitter, hitCoord, hitPoint, steps);
 	float alpha = SSRayAlpha(steps, 1.0, hitCoord, hitPoint, rayOrigin, rayDirection);
+	alpha = alpha * float(intersect);
 	
+	vec3 color = texture(inColor, TexCoord).rgb;
 	vec3 reflectedColor = texture(inColor, hitCoord).rgb;
 	
-	outReflection = vec4(reflectedColor, alpha * float(intersect));
+	//outReflection = vec4(reflectedColor, alpha);
+	outReflection = vec4(mix(color, (color + reflectedColor) / 2, alpha), alpha);
+	outReflectionRay = vec4(hitCoord, distance(position, hitPoint), float(intersect));
 	
 	// Ambient Occlusion
 	// Cast cosine distributed samples on a hemisphere for each fragment

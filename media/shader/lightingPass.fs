@@ -113,7 +113,7 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, vec3 ao)
 	
 	// reflectance equation
     vec3 Lo = vec3(0.0);
-    for(int i = 0; i < 1; ++i) 
+    for (int i = 0; i < 1; ++i) 
     {
         // calculate per-light radiance
         vec3 L = normalize(lightPosition - P);
@@ -162,7 +162,7 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, vec3 ao)
 	// sample both the pre-filter map and the BRDF lut and combine them together as per the Split-Sum approximation to get the IBL specular part.
     const float MAX_REFLECTION_LOD = 5.0;
     vec3 prefilteredColor = textureLod(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;    
-    vec2 brdf  = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+    vec2 brdf = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
     vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
 
     vec3 ambient = (kD * diffuse + specular) * ao;
@@ -173,6 +173,7 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, vec3 ao)
 
     // HDR tonemapping
     //color = color / (color + vec3(1.0));
+	
     // gamma correct
     color = pow(color, vec3(1.0/2.2));
 	

@@ -256,8 +256,8 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 		[&]() { return ssr->getGaussianBSigma(); });
 
 	gui->addGroup("Cone trace reflections");
-	gui->addVariable<int>("mipLevel",
-		[&](const int &value) { ssr->setConeTraceMipLevel(value); },
+	gui->addVariable<float>("mipLevel",
+		[&](const float &value) { ssr->setConeTraceMipLevel(value); },
 		[&]() { return ssr->getConeTraceMipLevel(); });
 	
 	guiScreen->setVisible(true);

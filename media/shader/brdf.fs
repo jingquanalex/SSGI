@@ -25,11 +25,11 @@ vec2 Hammersley(uint i, uint N)
 // ----------------------------------------------------------------------------
 vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness)
 {
-	float a = roughness*roughness;
+	float a = roughness * roughness;
 	
-	float phi = 2.0 * PI * Xi.x;
-	float cosTheta = sqrt((1.0 - Xi.y) / (1.0 + (a*a - 1.0) * Xi.y));
-	float sinTheta = sqrt(1.0 - cosTheta*cosTheta);
+	float phi = 2 * PI * Xi.x;
+	float cosTheta = sqrt((1 - Xi.y) / (1 + (a * a - 1) * Xi.y));
+	float sinTheta = sqrt(1 - cosTheta * cosTheta);
 	
 	// from spherical coordinates to cartesian coordinates - halfway vector
 	vec3 H;
@@ -38,7 +38,7 @@ vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness)
 	H.z = cosTheta;
 	
 	// from tangent-space H vector to world-space sample vector
-	vec3 up          = abs(N.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+	vec3 up        = abs(N.z) < 0.999 ? vec3(0, 0, 1) : vec3(1, 0, 0);
 	vec3 tangent   = normalize(cross(up, N));
 	vec3 bitangent = cross(N, tangent);
 	
@@ -71,7 +71,7 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 vec2 IntegrateBRDF(float NdotV, float roughness)
 {
     vec3 V;
-    V.x = sqrt(1.0 - NdotV*NdotV);
+    V.x = sqrt(1.0 - NdotV * NdotV);
     V.y = 0.0;
     V.z = NdotV;
 

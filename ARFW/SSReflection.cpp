@@ -26,6 +26,14 @@ SSReflection::SSReflection(int width, int height)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
+	glGenTextures(1, &cReflectionRay);
+	glBindTexture(GL_TEXTURE_2D, cReflectionRay);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bufferWidth, bufferHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
 	glGenTextures(1, &cAmbientOcclusion);
 	glBindTexture(GL_TEXTURE_2D, cAmbientOcclusion);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
@@ -73,8 +81,8 @@ SSReflection::SSReflection(int width, int height)
 	glGenFramebuffers(1, &fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-	const GLenum attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-	glDrawBuffers(2, attachments);
+	const GLenum attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+	glDrawBuffers(3, attachments);
 }
 
 SSReflection::~SSReflection()
@@ -86,7 +94,8 @@ void SSReflection::draw(GLuint texPosition, GLuint texNormal, GLuint texLight, G
 	// Screen space reflection pass
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cReflection, 0);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, cAmbientOcclusion, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, cReflectionRay, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, cAmbientOcclusion, 0);
 
 	glViewport(0, 0, bufferWidth, bufferHeight);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -104,8 +113,9 @@ void SSReflection::draw(GLuint texPosition, GLuint texNormal, GLuint texLight, G
 
 	quad->draw();
 
-	// Make sure to unbind drawing to 2nd attachment
+	// Make sure to unbind drawing to other attachments
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, 0, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, 0, 0);
 
 	// Create a mip chain of blurred light (color) buffer
 	gaussianBlurShader->apply();
@@ -121,7 +131,7 @@ void SSReflection::draw(GLuint texPosition, GLuint texNormal, GLuint texLight, G
 	{
 		glUniform1i(glGetUniformLocation(gaussianBlurShader->getShaderId(), "mipLevel"), mip);
 
-		// reisze framebuffer according to mip-level size.
+		// Reisze framebuffer according to mip-level size
 		int mipWidth = (int)(cFilterWidth * std::pow(0.5f, mip));
 		int mipHeight = (int)(cFilterHeight * std::pow(0.5f, mip));
 
@@ -139,6 +149,11 @@ void SSReflection::draw(GLuint texPosition, GLuint texNormal, GLuint texLight, G
 			glActiveTexture(GL_TEXTURE1);
 			glBindTexture(GL_TEXTURE_2D, cLightFilterH2);
 		}
+
+		/*glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, cReflection);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, cAmbientOcclusion);*/
 
 		quad->draw();
 
@@ -176,6 +191,8 @@ void SSReflection::draw(GLuint texPosition, GLuint texNormal, GLuint texLight, G
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D, cLightFilterV);
 	glActiveTexture(GL_TEXTURE4);
+	glBindTexture(GL_TEXTURE_2D, cReflectionRay);
+	glActiveTexture(GL_TEXTURE5);
 	glBindTexture(GL_TEXTURE_2D, cLightFilterV2);
 
 	quad->draw();
@@ -213,7 +230,8 @@ void SSReflection::initializeShaders()
 	glUniform1i(glGetUniformLocation(coneTraceShader->getShaderId(), "gNormal"), 1);
 	glUniform1i(glGetUniformLocation(coneTraceShader->getShaderId(), "inLight"), 2);
 	glUniform1i(glGetUniformLocation(coneTraceShader->getShaderId(), "inReflection"), 3);
-	glUniform1i(glGetUniformLocation(coneTraceShader->getShaderId(), "inAmbientOcclusion"), 4);
+	glUniform1i(glGetUniformLocation(coneTraceShader->getShaderId(), "inReflectionRay"), 4);
+	glUniform1i(glGetUniformLocation(coneTraceShader->getShaderId(), "inAmbientOcclusion"), 5);
 	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "mipLevel"), (float)coneTraceMipLevel);
 }
 
@@ -347,11 +365,11 @@ void SSReflection::setGaussianBSigma(float value)
 	glUniform1f(glGetUniformLocation(gaussianBlurShader->getShaderId(), "bsigma"), gaussianBSigma);
 }
 
-void SSReflection::setConeTraceMipLevel(int value)
+void SSReflection::setConeTraceMipLevel(float value)
 {
 	coneTraceMipLevel = value;
 	coneTraceShader->apply();
-	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "mipLevel"), (float)coneTraceMipLevel);
+	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "mipLevel"), coneTraceMipLevel);
 }
 
 float SSReflection::getMaxSteps() const
@@ -429,7 +447,7 @@ float SSReflection::getGaussianBSigma() const
 	return gaussianBSigma;
 }
 
-int SSReflection::getConeTraceMipLevel() const
+float SSReflection::getConeTraceMipLevel() const
 {
 	return coneTraceMipLevel;
 }
