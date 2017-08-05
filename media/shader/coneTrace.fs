@@ -11,7 +11,7 @@ uniform sampler2D inReflection;
 uniform sampler2D inReflectionRay;
 uniform sampler2D inAmbientOcclusion;
 
-uniform float roughness = 0.99;
+uniform float roughness = 1;
 uniform float mipLevel = 4;
 uniform float maxMipLevel = 11;
 uniform vec2 bufferSize = vec2(1920, 1080);
@@ -34,8 +34,8 @@ void main()
 	vec3 reflectedColor = texture(inLight, reflectionRay.xy).rgb;
 	
 	// Cone tracing
-	float specPower = 1000;
-	float coneAngle = cos(pow(0.244, 1 / (specPower + 1)));
+	float specPower = 1;
+	float coneAngle = cos(clamp(0.9708 + roughness, 0.0, 1.5));
 	
 	vec2 coneVec = reflectionRay.xy - TexCoord;
 	float adj = reflectionRay.z;
@@ -57,7 +57,7 @@ void main()
 		mip = log2(r * max(bufferSize.x, bufferSize.y));
 		//mip = roughness * maxMip * r;
 		
-		vec4 sampleColor = textureLod(inReflection, reflectionRay.xy, mip);
+		vec4 sampleColor = textureLod(inReflection, TexCoord, mip);
 		float weight = pow(1 - i / maxMip, 1);
 		
         totalColor += sampleColor * weight;
@@ -73,14 +73,15 @@ void main()
 	vec3 finalColor = vec3(0);
 	
 	
-	//finalColor = ao.rgb;
-	//finalColor = reflection.rgb * reflection.a;
-	finalColor = mix(light.rgb, reflection.rgb, reflection.a);
+	finalColor = totalColor.rgb;
+	//finalColor = reflection.rgb;
+	//finalColor = mix(light.rgb, reflection.rgb, reflection.a);
 	//finalColor = light.rgb;
 	//finalColor = mix(light.rgb, (light.rgb + totalColor.rgb) / 2, reflection.a);
 	//finalColor = mix(light.rgb, totalColor.rgb, reflection.a);
 	//finalColor = vec3(totalColor.a);
+	//finalColor = ao.rgb;
 	
-	outColor = vec4(finalColor, reflection.a);
+	outColor = vec4(finalColor, totalColor.a);
 	//outColor = vec4(finalColor, light.a);
 }

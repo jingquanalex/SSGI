@@ -164,10 +164,10 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, vec3 ao)
     const float MAX_REFLECTION_LOD = 5.0;
     vec3 prefilteredColor = textureLod(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
 	vec4 reflectionColor = texture(reflectionMap, TexCoord);
-	reflectionColor.rgb = mix(prefilteredColor, reflectionColor.rgb, 1 - roughness);
+	
 	
 	reflectionColor.rgb = mix(reflectionColor.rgb, reflectionColor.rgb * prefilteredColor, 1 - pow(1 - metallic, 5));
-	
+	reflectionColor.rgb = mix(reflectionColor.rgb, prefilteredColor, roughness);
 	vec3 envColor = mix(prefilteredColor, reflectionColor.rgb, reflectionColor.a);
 	//envColor = prefilteredColor;
 	//envColor = reflectionColor.rgb;

@@ -148,8 +148,8 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	gui->addVariable("Position Y", lightPosition.y);
 	gui->addVariable("Position Z", lightPosition.z);
 	gui->addVariable("Color", lightColor);
-	gui->addVariable("Roughness", roughness);
-	gui->addVariable("Metallic", metallic);
+	gui->addVariable("Roughness", roughness)->setSpinnable(true);
+	gui->addVariable("Metallic", metallic)->setSpinnable(true);
 
 	gui->addGroup("Kinect depth filters");
 	gui->addGroup("Temporal median filter");
@@ -480,6 +480,7 @@ void Scene::update()
 	glUniform3fv(glGetUniformLocation(lightingPassShader->getShaderId(), "lightColor"), 1, value_ptr(vec3(lightColor.r(), lightColor.g(), lightColor.b())));
 	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "metallic"), metallic);
 	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "roughness"), roughness);
+	ssr->setRoughness(roughness);
 
 	camera->update(frameTime);
 	sensor->update();
@@ -565,7 +566,8 @@ void Scene::render()
 	
 
 	// Screen space reflection pass
-	ssr->draw(gComposedPosition, gComposedNormal, cFullScene, dsColor, irradianceMap, prefilterMap, cLightingFull);
+	GLuint ao;
+	ssr->draw(gComposedPosition, gComposedNormal, cFullScene, dsColor, irradianceMap, prefilterMap, cLightingFull, ao);
 	
 	// Differential rendering: Rendered (virtual) scene pass
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
@@ -606,7 +608,7 @@ void Scene::render()
 
 	
 	// Screen space reflection pass
-	ssr->draw(dsPosition, dsNormal, cBackScene, dsColor, irradianceMap, prefilterMap, cLightingBack);
+	ssr->draw(dsPosition, dsNormal, cBackScene, dsColor, irradianceMap, prefilterMap, cLightingBack, ao);
 	
 
 	// Differential rendering: Background (real) scene pass
@@ -666,9 +668,12 @@ void Scene::render()
 
 
 	// Draw GUI
-	guiScreen->drawWidgets();
-	glEnable(GL_DEPTH_TEST); // Reset changed states
-	glDisable(GL_BLEND);
+	if (isGUIVisible)
+	{
+		guiScreen->drawWidgets();
+		glEnable(GL_DEPTH_TEST); // Reset changed states
+		glDisable(GL_BLEND);
+	}
 }
 
 void Scene::spawnDragons(int numRadius)
@@ -708,6 +713,11 @@ void Scene::keyCallback(int key, int action)
 	{
 		sensor->toggleRendering();
 	}
+
+	if (key == GLFW_KEY_F1 && action == GLFW_PRESS)
+	{
+		isGUIVisible = !isGUIVisible;
+	}
 }
 
 void Scene::cursorPosCallback(double x, double y)
@@ -723,4 +733,25 @@ void Scene::mouseCallback(int button, int action)
 void Scene::windowSizeCallback(int x, int y)
 {
 	camera->setResolution(x, y);
+}
+
+float Scene::getRoughness() const
+{
+	return roughness;
+}
+
+float Scene::getMetallic() const
+{
+	return metallic;
+}
+
+void Scene::setRoughness(float value)
+{
+	roughness = value;
+	ssr->setRoughness(roughness);
+}
+
+void Scene::setMetallic(float value)
+{
+	metallic = value;
 }

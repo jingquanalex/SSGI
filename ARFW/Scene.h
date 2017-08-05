@@ -52,6 +52,7 @@ private:
 	nanogui::FormHelper *gui = nullptr;
 	nanogui::ref<nanogui::Window> nanoguiWindow = nullptr;
 	nanogui::ref<nanogui::Window> nanoguiWindow2 = nullptr;
+	bool isGUIVisible = true;
 
 	DSensor* sensor = nullptr;
 
@@ -97,5 +98,11 @@ public:
 	void cursorPosCallback(double x, double y);
 	void mouseCallback(int button, int action);
 	void windowSizeCallback(int x, int y);
+
+	float getRoughness() const;
+	float getMetallic() const;
+
+	void setRoughness(float value);
+	void setMetallic(float value);
 
 };

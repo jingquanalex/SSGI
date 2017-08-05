@@ -89,8 +89,10 @@ SSReflection::~SSReflection()
 {
 }
 
-void SSReflection::draw(GLuint texPosition, GLuint texNormal, GLuint texLight, GLuint dsColor, GLuint irrEnv, GLuint prefiltEnv, GLuint outTexture)
+void SSReflection::draw(GLuint texPosition, GLuint texNormal, GLuint texLight, GLuint dsColor, GLuint irrEnv, GLuint prefiltEnv, GLuint outTexture, GLuint& outAO)
 {
+	outAO = cAmbientOcclusion;
+
 	// Screen space reflection pass
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cReflection, 0);
@@ -373,6 +375,12 @@ void SSReflection::setConeTraceMipLevel(float value)
 	coneTraceMipLevel = value;
 	coneTraceShader->apply();
 	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "mipLevel"), coneTraceMipLevel);
+}
+
+void SSReflection::setRoughness(float value)
+{
+	coneTraceShader->apply();
+	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "roughness"), value);
 }
 
 float SSReflection::getMaxSteps() const

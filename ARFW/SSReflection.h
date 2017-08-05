@@ -48,7 +48,7 @@ public:
 	SSReflection(int width, int height);
 	~SSReflection();
 
-	void draw(GLuint texPosition, GLuint texNormal, GLuint texLight, GLuint dsColor, GLuint irrEnv, GLuint prefiltEnv, GLuint outTexture);
+	void draw(GLuint texPosition, GLuint texNormal, GLuint texLight, GLuint dsColor, GLuint irrEnv, GLuint prefiltEnv, GLuint outTexture, GLuint& outAO);
 
 	void initializeShaders();
 	void recompileShaders();
@@ -69,6 +69,7 @@ public:
 	void setGaussianSigma(float value);
 	void setGaussianBSigma(float value);
 	void setConeTraceMipLevel(float value);
+	void setRoughness(float value);
 
 	float getMaxSteps() const;
 	float getBinarySearchSteps() const;

@@ -16,8 +16,8 @@ private:
 	float kernelRadius = 0.05f;
 	float sampleBias = 0.001f;
 	float intensity = 1.0f;
-	float power = 1.0f;
-
+	float power = 2.0f;
+	
 	std::vector<float> blurKernel;
 	int blurKernelRadius = 5;
 	float blurSigma = 5.0f;
