@@ -329,6 +329,7 @@ float SSRayAlpha(float steps, float specularStrength, vec2 hitCoord, vec3 hitPoi
 uniform float roughness = 0.99;
 uniform sampler2D inColor;
 uniform samplerCube irradianceMap;
+uniform samplerCube prefilterMap;
 
 const float PI = 3.14159265359;
 // ----------------------------------------------------------------------------
@@ -399,8 +400,13 @@ void main()
 	vec3 color = texture(inColor, TexCoord).rgb;
 	vec3 reflectedColor = texture(inColor, hitCoord).rgb;
 	
-	//outReflection = vec4(reflectedColor, alpha);
-	outReflection = vec4(mix(color, (color + reflectedColor) / 2, alpha), alpha);
+	/*const float MAX_REFLECTION_LOD = 5.0;
+	vec3 reflectedNormal = texture(gNormal, hitCoord).rgb;
+	vec3 rN = mat3(viewInverse) * reflectedNormal;
+    vec3 prefilteredColor = textureLod(prefilterMap, rN, 0.24 * MAX_REFLECTION_LOD).rgb;
+	
+	outReflection = vec4(mix((color+prefilteredColor)/2, prefilteredColor, alpha), alpha);*/
+	outReflection = vec4(reflectedColor, alpha);
 	outReflectionRay = vec4(hitCoord, distance(position, hitPoint), float(intersect));
 	
 	// Ambient Occlusion

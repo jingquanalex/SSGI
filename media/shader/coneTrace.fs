@@ -72,12 +72,15 @@ void main()
 	
 	vec3 finalColor = vec3(0);
 	
-	//finalColor = mix(light.rgb, reflection.rgb, reflection.a);
-	//finalColor = reflectedColor;
-	//finalColor = light.rgb;
+	
 	//finalColor = ao.rgb;
-	finalColor = mix(light.rgb, (light.rgb + totalColor.rgb) / 2, reflection.a);
+	//finalColor = reflection.rgb * reflection.a;
+	finalColor = mix(light.rgb, reflection.rgb, reflection.a);
+	//finalColor = light.rgb;
+	//finalColor = mix(light.rgb, (light.rgb + totalColor.rgb) / 2, reflection.a);
+	//finalColor = mix(light.rgb, totalColor.rgb, reflection.a);
 	//finalColor = vec3(totalColor.a);
 	
-	outColor = vec4(finalColor, light.a);
+	outColor = vec4(finalColor, reflection.a);
+	//outColor = vec4(finalColor, light.a);
 }

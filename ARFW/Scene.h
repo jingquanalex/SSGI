@@ -68,9 +68,10 @@ private:
 
 	Shader* compositeShader;
 	GLuint captureFBO;
-	GLuint cLighting;
-	GLuint cFullScene;
-	GLuint cBackScene;
+	GLuint cLightingFull, cLightingBack;
+	GLuint cFullScene, cBackScene;
+	GLuint cFullScene2, cBackScene2;
+	int currFrame = 0;
 
 	SSReflection* ssr;
 	

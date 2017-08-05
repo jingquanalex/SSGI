@@ -60,6 +60,7 @@ void Scene::initializeShaders()
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "irradianceMap"), 6);
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "prefilterMap"), 7);
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "brdfLUT"), 8);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "reflectionMap"), 9);
 
 	compositeShader->apply();
 	glUniform1i(glGetUniformLocation(compositeShader->getShaderId(), "fullScene"), 0);
@@ -394,8 +395,16 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenFramebuffers(1, &captureFBO);
 
-	glGenTextures(1, &cLighting);
-	glBindTexture(GL_TEXTURE_2D, cLighting);
+	glGenTextures(1, &cLightingFull);
+	glBindTexture(GL_TEXTURE_2D, cLightingFull);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glGenTextures(1, &cLightingBack);
+	glBindTexture(GL_TEXTURE_2D, cLightingBack);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -412,6 +421,22 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &cBackScene);
 	glBindTexture(GL_TEXTURE_2D, cBackScene);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glGenTextures(1, &cFullScene2);
+	glBindTexture(GL_TEXTURE_2D, cFullScene2);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glGenTextures(1, &cBackScene2);
+	glBindTexture(GL_TEXTURE_2D, cBackScene2);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -538,9 +563,13 @@ void Scene::render()
 	ssao->drawCombined(gComposedColor);
 
 	
+
+	// Screen space reflection pass
+	ssr->draw(gComposedPosition, gComposedNormal, cFullScene, dsColor, irradianceMap, prefilterMap, cLightingFull);
+	
 	// Differential rendering: Rendered (virtual) scene pass
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cLighting, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cFullScene, 0);
 
 	// Lighting pass
 	glViewport(0, 0, bufferWidth, bufferHeight);
@@ -568,15 +597,21 @@ void Scene::render()
 	glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
 	glActiveTexture(GL_TEXTURE8);
 	glBindTexture(GL_TEXTURE_2D, brdfLUT);
+	glActiveTexture(GL_TEXTURE9);
+	glBindTexture(GL_TEXTURE_2D, cLightingFull);
 
 	quad->draw();
 
 	
-	ssr->draw(gComposedPosition, gComposedNormal, cLighting, dsColor, irradianceMap, cFullScene);
+
+	
+	// Screen space reflection pass
+	ssr->draw(dsPosition, dsNormal, cBackScene, dsColor, irradianceMap, prefilterMap, cLightingBack);
+	
 
 	// Differential rendering: Background (real) scene pass
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cLighting, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cBackScene, 0);
 
 	// Lighting pass
 	glViewport(0, 0, bufferWidth, bufferHeight);
@@ -604,12 +639,13 @@ void Scene::render()
 	glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
 	glActiveTexture(GL_TEXTURE8);
 	glBindTexture(GL_TEXTURE_2D, brdfLUT);
+	glActiveTexture(GL_TEXTURE9);
+	glBindTexture(GL_TEXTURE_2D, cLightingBack);
 
 	quad->draw();
 
-	// Screen space reflection pass
-	ssr->draw(dsPosition, dsNormal, cLighting, dsColor, irradianceMap, cBackScene);
-
+	
+	
 
 	// Combine the differential rendering textures
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);

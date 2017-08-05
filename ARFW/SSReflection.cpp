@@ -89,7 +89,7 @@ SSReflection::~SSReflection()
 {
 }
 
-void SSReflection::draw(GLuint texPosition, GLuint texNormal, GLuint texLight, GLuint dsColor, GLuint irrEnv, GLuint outTexture)
+void SSReflection::draw(GLuint texPosition, GLuint texNormal, GLuint texLight, GLuint dsColor, GLuint irrEnv, GLuint prefiltEnv, GLuint outTexture)
 {
 	// Screen space reflection pass
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -110,6 +110,8 @@ void SSReflection::draw(GLuint texPosition, GLuint texNormal, GLuint texLight, G
 	glBindTexture(GL_TEXTURE_2D, texLight);
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, irrEnv);
+	glActiveTexture(GL_TEXTURE4);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, prefiltEnv);
 
 	quad->draw();
 
@@ -205,6 +207,7 @@ void SSReflection::initializeShaders()
 	glUniform1i(glGetUniformLocation(ssReflectionPassShader->getShaderId(), "gNormal"), 1);
 	glUniform1i(glGetUniformLocation(ssReflectionPassShader->getShaderId(), "inColor"), 2);
 	glUniform1i(glGetUniformLocation(ssReflectionPassShader->getShaderId(), "irradianceMap"), 3);
+	glUniform1i(glGetUniformLocation(ssReflectionPassShader->getShaderId(), "prefilterMap"), 4);
 
 	glUniform1f(glGetUniformLocation(ssReflectionPassShader->getShaderId(), "maxSteps"), maxSteps);
 	glUniform1f(glGetUniformLocation(ssReflectionPassShader->getShaderId(), "binarySearchSteps"), binarySearchSteps);

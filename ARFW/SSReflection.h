@@ -8,9 +8,9 @@ class SSReflection
 
 private:
 
-	float maxSteps = 100.0f;
+	float maxSteps = 200.0f;
 	float binarySearchSteps = 20.0f;
-	float maxRayTraceDistance = 0.5f;
+	float maxRayTraceDistance = 0.2f;
 	float nearPlaneZ = -0.01f;
 	float rayZThickness = 0.01f;
 	float stride = 5.0f;
@@ -48,7 +48,7 @@ public:
 	SSReflection(int width, int height);
 	~SSReflection();
 
-	void draw(GLuint texPosition, GLuint texNormal, GLuint texLight, GLuint dsColor, GLuint irrEnv, GLuint outTexture);
+	void draw(GLuint texPosition, GLuint texNormal, GLuint texLight, GLuint dsColor, GLuint irrEnv, GLuint prefiltEnv, GLuint outTexture);
 
 	void initializeShaders();
 	void recompileShaders();
