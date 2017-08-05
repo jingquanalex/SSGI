@@ -137,7 +137,7 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, vec3 ao)
         // for energy conservation, the diffuse and specular light can't
         // be above 1.0 (unless the surface emits light); to preserve this
         // relationship the diffuse component (kD) should equal 1.0 - kS.
-        vec3 kD = vec3(1.0) - kS;
+        vec3 kD = 1.0 - kS;
         // multiply kD by the inverse metalness such that only non-metals 
         // have diffuse lighting, or a linear blend if partly metal (pure metals
         // have no diffuse light).
@@ -164,13 +164,14 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, vec3 ao)
     const float MAX_REFLECTION_LOD = 5.0;
     vec3 prefilteredColor = textureLod(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
 	vec4 reflectionColor = texture(reflectionMap, TexCoord);
-	
-	
 	reflectionColor.rgb = mix(reflectionColor.rgb, reflectionColor.rgb * prefilteredColor, 1 - pow(1 - metallic, 5));
 	reflectionColor.rgb = mix(reflectionColor.rgb, prefilteredColor, roughness);
 	vec3 envColor = mix(prefilteredColor, reflectionColor.rgb, reflectionColor.a);
 	//envColor = prefilteredColor;
 	//envColor = reflectionColor.rgb;
+	
+	//vec3 dscolor = texture(dsColor, TexCoord).rgb;
+	//envColor = mix(envColor, dscolor, 1-inColor.a);
 	
     vec2 brdf = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
     vec3 specular = envColor * (F * brdf.x + brdf.y);
@@ -185,7 +186,7 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, vec3 ao)
     //color = color / (color + vec3(1.0));
 	
     // gamma correct
-    color = pow(color, vec3(1.0/2.2));
+    color = pow(color, vec3(1.0 / 2.2));
 	
 	return color;
 }
@@ -238,7 +239,7 @@ void main()
 			break;
 			
 		case 6:
-			outColor = dscolor;
+			outColor = vec4(color.a);
 			break;
 			
 		case 7:

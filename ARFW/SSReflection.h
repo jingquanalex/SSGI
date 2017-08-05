@@ -10,7 +10,7 @@ private:
 
 	float maxSteps = 200.0f;
 	float binarySearchSteps = 20.0f;
-	float maxRayTraceDistance = 0.2f;
+	float maxRayTraceDistance = 1.0f;
 	float nearPlaneZ = -0.01f;
 	float rayZThickness = 0.01f;
 	float stride = 5.0f;

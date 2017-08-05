@@ -68,10 +68,11 @@ private:
 	GLuint brdfLUT;
 
 	Shader* compositeShader;
+	Shader* outputShader;
 	GLuint captureFBO;
 	GLuint cLightingFull, cLightingBack;
 	GLuint cFullScene, cBackScene;
-	GLuint cFullScene2, cBackScene2;
+	GLuint cFinalScene;
 	int currFrame = 0;
 
 	SSReflection* ssr;
