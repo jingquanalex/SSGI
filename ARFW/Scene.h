@@ -59,7 +59,7 @@ private:
 	glm::vec3 lightPosition = glm::vec3(0.0f, 1111.5f, 0.0f);
 	nanogui::Color lightColor = nanogui::Color(1.00f, 0.48f, 0.49f, 1.0f);
 	float roughness = 0.24f;
-	float metallic = 0.1f;
+	float metallic = 0.01f;
 
 	PBR* pbr;
 	GLuint environmentMap;

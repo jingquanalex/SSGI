@@ -12,7 +12,6 @@ uniform sampler2D inReflectionRay;
 uniform sampler2D inAmbientOcclusion;
 
 uniform float roughness = 1;
-uniform float maxRayTraceDistance = 1;
 uniform float mipLevel = 0;
 uniform float maxMipLevel = 11;
 uniform vec2 bufferSize = vec2(1920, 1080);
@@ -73,21 +72,16 @@ void main()
 	
 	vec3 finalColor = vec3(0);
 	
-	float distScaled = smoothstep(0.0, maxRayTraceDistance, reflectionRay.z);
-	mip = clamp(distScaled * roughness * pow(1 + roughness, 10), 0, 5);
-	vec4 distColor = textureLod(inReflection, TexCoord, mip);
-	
 	
 	finalColor = totalColor.rgb;
 	//finalColor = reflection.rgb;
-	finalColor = distColor.rgb;
+	//finalColor = mix(light.rgb, reflection.rgb, reflection.a);
 	//finalColor = light.rgb;
 	//finalColor = mix(light.rgb, (light.rgb + totalColor.rgb) / 2, reflection.a);
 	//finalColor = mix(light.rgb, totalColor.rgb, reflection.a);
 	//finalColor = vec3(totalColor.a);
 	//finalColor = ao.rgb;
 	
-	//outColor = textureLod(inReflection, TexCoord, reflectionRay.z * 22);
-	outColor = vec4(finalColor, distColor.a);
+	outColor = vec4(finalColor, reflection.a);
 	//outColor = vec4(finalColor, light.a);
 }

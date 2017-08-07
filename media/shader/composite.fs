@@ -22,7 +22,7 @@ void main()
 	vec4 finalcolor = fullcolor;
 	
 	vec3 objects = fullcolor.rgb * fullcolor.a;
-	vec3 background = (dscolor + fullcolor.rgb - backcolor.rgb) * (1 - fullcolor.a);
+	vec3 background = (dscolor * fullcolor.rgb / backcolor.rgb) * (1 - fullcolor.a);
 	finalcolor.rgb = objects + background;
 	
 	outColor = finalcolor;

@@ -99,7 +99,7 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }   
 
-vec3 render(vec3 P, vec3 N, vec4 inColor, vec3 ao)
+vec3 render(vec3 P, vec3 N, vec4 inColor, vec4 inReflection, vec3 ao)
 {
 	vec3 albedo = pow(inColor.rgb, vec3(2.2));
 	
@@ -163,9 +163,10 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, vec3 ao)
 	// sample both the pre-filter map and the BRDF lut and combine them together as per the Split-Sum approximation to get the IBL specular part.
     const float MAX_REFLECTION_LOD = 5.0;
     vec3 prefilteredColor = textureLod(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
-	vec4 reflectionColor = texture(reflectionMap, TexCoord);
-	reflectionColor.rgb = mix(reflectionColor.rgb, reflectionColor.rgb * prefilteredColor, 1 - pow(1 - metallic, 5));
-	reflectionColor.rgb = mix(reflectionColor.rgb, prefilteredColor, roughness);
+	vec4 reflectionColor = inReflection;
+	//reflectionColor.rgb = mix(reflectionColor.rgb, reflectionColor.rgb * prefilteredColor, 1 - pow(1 - metallic, 5));
+	//reflectionColor.rgb = mix(reflectionColor.rgb, prefilteredColor, roughness);
+	//reflectionColor.rgb = reflectionColor.rgb * prefilteredColor;
 	vec3 envColor = mix(prefilteredColor, reflectionColor.rgb, reflectionColor.a);
 	//envColor = prefilteredColor;
 	//envColor = reflectionColor.rgb;
@@ -202,6 +203,7 @@ void main()
     vec3 normal = texture(gNormal, TexCoord).xyz;
 	vec3 normalWorld = mat3(viewInverse) * normal;
     vec4 color = texture(gColor, TexCoord);
+	vec4 reflection = texture(reflectionMap, TexCoord);
 	
 	// Reconstruct position from depth buffer
 	//position = depthToViewPosition(depth, TexCoord);
@@ -212,7 +214,7 @@ void main()
 	
 	vec4 finalColor = vec4(0);
 	vec3 ao = texture(aoMap, TexCoord).rgb;
-	finalColor.rgb = render(positionWorld, normalWorld, color, ao);
+	finalColor.rgb = render(positionWorld, normalWorld, color, reflection, ao);
 	finalColor.a = color.a;
 	
 	
@@ -247,7 +249,7 @@ void main()
 			break;
 			
 		case 8:
-			outColor = vec4(texture(reflectionMap, TexCoord));
+			outColor = vec4(vec3(reflection.rgb * reflection.a), 1);
 			break;
 	}
 	

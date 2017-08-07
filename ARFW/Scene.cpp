@@ -187,9 +187,9 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	gui->addVariable<float>("kernelRadius",
 		[&](const float &value) { ssao->setKernelRadius(value); },
 		[&]() { return ssao->getKernelRadius(); });
-	gui->addVariable<float>("sampleBias",
-		[&](const float &value) { ssao->setSampleBias(value); },
-		[&]() { return ssao->getSampleBias(); });
+	gui->addVariable<float>("bias",
+		[&](const float &value) { ssao->setBias(value); },
+		[&]() { return ssao->getBias(); });
 	gui->addVariable<float>("intensity",
 		[&](const float &value) { ssao->setIntensity(value); },
 		[&]() { return ssao->getIntensity(); });
@@ -564,7 +564,7 @@ void Scene::render()
 
 	// Screen space reflection pass
 	GLuint ao;
-	ssr->draw(gComposedPosition, gComposedNormal, cFinalScene, dsColor, irradianceMap, prefilterMap, cLightingFull, ao);
+	ssr->draw(gComposedPosition, gComposedNormal, cFullScene, irradianceMap, prefilterMap, cLightingFull, ao);
 	
 	// Differential rendering: Rendered (virtual) scene pass
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
@@ -605,7 +605,7 @@ void Scene::render()
 
 	
 	// Screen space reflection pass
-	ssr->draw(dsPosition, dsNormal, dsColor, dsColor, irradianceMap, prefilterMap, cLightingBack, ao);
+	ssr->draw(dsPosition, dsNormal, cBackScene, irradianceMap, prefilterMap, cLightingBack, ao);
 	
 
 	// Differential rendering: Background (real) scene pass

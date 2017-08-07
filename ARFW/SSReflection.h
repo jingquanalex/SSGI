@@ -18,13 +18,13 @@ private:
 	float jitterFactor = 0.5f;
 
 	float screenEdgeFadeStart = 0.8f;
-	float cameraFadeStart = 0.2f;
-	float cameraFadeLength = 0.2f;
+	float cameraFadeStart = 0.98f;
+	float cameraFadeLength = 0.01f;
 
 	int maxMipLevels = 5;
 	int gaussianKernelRadius = 5;
 	float gaussianSigma = 5.0f;
-	float gaussianBSigma = 0.1f;
+	float gaussianBSigma = 10.1f;
 
 	float coneTraceMipLevel = 0;
 	
@@ -48,7 +48,7 @@ public:
 	SSReflection(int width, int height);
 	~SSReflection();
 
-	void draw(GLuint texPosition, GLuint texNormal, GLuint texLight, GLuint dsColor, GLuint irrEnv, GLuint prefiltEnv, GLuint outTexture, GLuint& outAO);
+	void draw(GLuint texPosition, GLuint texNormal, GLuint texLight, GLuint irrEnv, GLuint prefiltEnv, GLuint outTexture, GLuint& outAO);
 
 	void initializeShaders();
 	void recompileShaders();

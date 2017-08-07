@@ -290,6 +290,7 @@ bool traceSSRay(vec3 rayOrigin, vec3 rayDirection, float jitter,
 		}
 	}
 
+	steps = stepCount;
     Q.xy += dQ.xy * stepCount;
 	hitPoint = Q / PQk.w;
 	hitPixel = hitPixel * texelSize;
@@ -298,13 +299,12 @@ bool traceSSRay(vec3 rayOrigin, vec3 rayDirection, float jitter,
     return intersect;
 }
 
-float SSRayAlpha(float steps, float specularStrength, vec2 hitCoord, vec3 hitPoint, 
-	vec3 vsRayOrigin, vec3 vsRayDirection)
+float SSRayAlpha(vec3 rayOrigin, vec3 rayDirection, vec2 hitCoord, vec3 hitPoint, float steps)
 {
-	float alpha = min(1.0, specularStrength * 1.0);
+	float alpha = 1;
 	
 	// Fade ray hits that approach the maximum iterations
-	alpha *= 1.0 - pow(steps / maxSteps, 20);
+	//alpha *= pow(1 - steps / maxSteps, 5);
 	
 	// Fade ray hits that approach the screen edge
 	float screenFade = screenEdgeFadeStart;
@@ -313,15 +313,13 @@ float SSRayAlpha(float steps, float specularStrength, vec2 hitCoord, vec3 hitPoi
 	alpha *= 1.0 - (max(0.0, maxDimension - screenFade) / (1.0 - screenFade));
 	
 	// Fade ray hits base on how much they face the camera
-	float eyeFadeStart = cameraFadeStart;
-	float eyeFadeEnd = cameraFadeStart + cameraFadeLength;
-	eyeFadeEnd = min(1.0, eyeFadeEnd);
-	
-	float eyeDirection = clamp(vsRayDirection.z, eyeFadeStart, eyeFadeEnd);
-	alpha *= 1.0 - ((eyeDirection - eyeFadeStart) / (eyeFadeEnd - eyeFadeStart));
+	vec3 rayDir = normalize(hitPoint - rayOrigin);
+	float fadeAngleStart = cameraFadeStart;
+	float fadeAngleEnd = cameraFadeStart - cameraFadeLength;
+	alpha *= smoothstep(-fadeAngleStart, -fadeAngleEnd, dot(normalize(rayOrigin), rayDir));
 	
 	// Fade ray hits based on distance from ray origin
-	//alpha *= 1.0 - clamp(distance(vsRayOrigin, hitPoint) / maxRayTraceDistance, 0.0, 1.0);
+	//alpha *= 1.0 - clamp(distance(rayOrigin, hitPoint) / maxRayTraceDistance, 0.0, 1.0);
 	
 	return alpha;
 }
@@ -394,7 +392,7 @@ void main()
 	//if (stride == 1) jitter = 1;
 	
 	bool intersect = traceSSRay(rayOrigin, rayDirection, jitter, hitCoord, hitPoint, steps);
-	float alpha = SSRayAlpha(steps, 1.0, hitCoord, hitPoint, rayOrigin, rayDirection);
+	float alpha = SSRayAlpha(rayOrigin, rayDirection, hitCoord, hitPoint, steps);
 	alpha = alpha * float(intersect);
 	
 	vec3 color = texture(inColor, TexCoord).rgb;
@@ -407,7 +405,7 @@ void main()
 	
 	outReflection = vec4(mix((color+prefilteredColor)/2, prefilteredColor, alpha), alpha);*/
 	outReflection = vec4(reflectedColor, alpha);
-	outReflectionRay = vec4(hitCoord, distance(position, hitPoint), float(intersect));
+	outReflectionRay = vec4(hitCoord, distance(rayOrigin, hitPoint), float(intersect));
 	
 	// Ambient Occlusion
 	// Cast cosine distributed samples on a hemisphere for each fragment
@@ -424,7 +422,7 @@ void main()
 		intersect = traceSSRay(rayOrigin, H, jitter, hitCoord, hitPoint, steps);
 		
 		// No occlusion contribution from rays facing camera
-		vec3 rayDir = normalize(hitPoint - position);
+		vec3 rayDir = normalize(hitPoint - rayOrigin);
 		if (dot(normalize(position), rayDir) < -0.99) intersect = false;
 		
 		if (intersect)

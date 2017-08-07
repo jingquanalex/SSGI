@@ -55,8 +55,8 @@ void PBR::precomputeEnvMaps(GLuint& envMap, GLuint& irrMap, GLuint& prefilterMap
 		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
 	};
 
-	//GLuint hdrTexture = Image::loadHDRI(g_ExePath + "../../media/hdr/Alexs_Apartment/Alexs_Apt_2k.hdr");
-	GLuint hdrTexture = Image::loadHDRI(g_ExePath + "../../media/hdr/desktop.hdr");
+	GLuint hdrTexture = Image::loadHDRI(g_ExePath + "../../media/hdr/Alexs_Apartment/Alexs_Apt_2k.hdr");
+	//GLuint hdrTexture = Image::loadHDRI(g_ExePath + "../../media/hdr/desktop.hdr");
 
 	Shader* hdrToCubemapShader = new Shader("hdrToCube");
 

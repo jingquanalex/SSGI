@@ -117,7 +117,7 @@ void SSAO::initializeShaders()
 	glUniform3fv(glGetUniformLocation(shader->getShaderId(), "inSamples"), 64, value_ptr(kernel[0]));
 	glUniform1i(glGetUniformLocation(shader->getShaderId(), "kernelSize"), kernelSize);
 	glUniform1f(glGetUniformLocation(shader->getShaderId(), "kernelRadius"), kernelRadius);
-	glUniform1f(glGetUniformLocation(shader->getShaderId(), "sampleBias"), sampleBias);
+	glUniform1f(glGetUniformLocation(shader->getShaderId(), "bias"), bias);
 	glUniform1f(glGetUniformLocation(shader->getShaderId(), "intensity"), intensity);
 	glUniform1f(glGetUniformLocation(shader->getShaderId(), "power"), power);
 
@@ -259,9 +259,9 @@ float SSAO::getKernelRadius() const
 	return kernelRadius;
 }
 
-float SSAO::getSampleBias() const
+float SSAO::getBias() const
 {
-	return sampleBias;
+	return bias;
 }
 
 float SSAO::getIntensity() const
@@ -303,11 +303,11 @@ void SSAO::setKernelRadius(float value)
 	glUniform1f(glGetUniformLocation(shader->getShaderId(), "kernelRadius"), kernelRadius);
 }
 
-void SSAO::setSampleBias(float value)
+void SSAO::setBias(float value)
 {
-	sampleBias = value;
+	bias = value;
 	shader->apply();
-	glUniform1f(glGetUniformLocation(shader->getShaderId(), "sampleBias"), sampleBias);
+	glUniform1f(glGetUniformLocation(shader->getShaderId(), "bias"), bias);
 }
 
 void SSAO::setIntensity(float value)

@@ -14,7 +14,7 @@ private:
 
 	int kernelSize = 64;
 	float kernelRadius = 0.05f;
-	float sampleBias = 0.001f;
+	float bias = 0.001f;
 	float intensity = 1.0f;
 	float power = 2.0f;
 	
@@ -49,7 +49,7 @@ public:
 	GLuint getTextureLayer(int layer) const;
 	int getKernelSize() const;
 	float getKernelRadius() const;
-	float getSampleBias() const;
+	float getBias() const;
 	float getIntensity() const;
 	float getPower() const;
 	int getBlurKernelRadius() const;
@@ -58,7 +58,7 @@ public:
 
 	void setKernelSize(int value);
 	void setKernelRadius(float value);
-	void setSampleBias(float value);
+	void setBias(float value);
 	void setIntensity(float value);
 	void setPower(float value);
 	void setBlurKernelRadius(int value);

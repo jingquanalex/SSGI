@@ -53,6 +53,8 @@ void main()
 	vec4 accumValue2 = vec4(0);
 	float accumWeight = 0;
 	
+	//kernelRadius = kernelRadius * mip;
+	
 	for (int i = -kernelRadius; i <= kernelRadius; i++)
 	{
 		vec2 sampleCoord = TexCoord + i * texelSize;

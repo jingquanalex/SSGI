@@ -89,7 +89,7 @@ SSReflection::~SSReflection()
 {
 }
 
-void SSReflection::draw(GLuint texPosition, GLuint texNormal, GLuint texLight, GLuint dsColor, GLuint irrEnv, GLuint prefiltEnv, GLuint outTexture, GLuint& outAO)
+void SSReflection::draw(GLuint texPosition, GLuint texNormal, GLuint texLight, GLuint irrEnv, GLuint prefiltEnv, GLuint outTexture, GLuint& outAO)
 {
 	outAO = cAmbientOcclusion;
 
