@@ -166,7 +166,9 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, vec4 inReflection, vec3 ao)
 	vec4 reflectionColor = inReflection;
 	//reflectionColor.rgb = mix(reflectionColor.rgb, reflectionColor.rgb * prefilteredColor, 1 - pow(1 - metallic, 5));
 	//reflectionColor.rgb = mix(reflectionColor.rgb, prefilteredColor, roughness);
-	//reflectionColor.rgb = reflectionColor.rgb * prefilteredColor;
+	//reflectionColor.rgb *= prefilteredColor;
+	reflectionColor.rgb = mix(reflectionColor.rgb, reflectionColor.rgb * irradiance, 1 - pow(1 - metallic, 5));
+	reflectionColor.a *= 1 - pow(roughness, 8);
 	vec3 envColor = mix(prefilteredColor, reflectionColor.rgb, reflectionColor.a);
 	//envColor = prefilteredColor;
 	//envColor = reflectionColor.rgb;

@@ -16,14 +16,16 @@ float rgb2gray(vec3 color)
 
 void main()
 {
-	vec4 fullcolor = texture(fullScene, TexCoord);
-	vec4 backcolor = texture(backScene, TexCoord);
+	vec4 fullcolor = clamp(texture(fullScene, TexCoord), 0.0, 1.0);
+	vec4 backcolor = clamp(texture(backScene, TexCoord), 0.0, 1.0);
 	vec3 dscolor = texture(dsColor, TexCoord).rgb;
 	vec4 finalcolor = fullcolor;
 	
 	vec3 objects = fullcolor.rgb * fullcolor.a;
-	vec3 background = (dscolor * fullcolor.rgb / backcolor.rgb) * (1 - fullcolor.a);
-	finalcolor.rgb = objects + background;
-	
+	//vec3 background = (dscolor * fullcolor.rgb / backcolor.rgb) * (1 - fullcolor.a);
+	vec3 background = (dscolor + fullcolor.rgb - backcolor.rgb) * (1 - fullcolor.a);
+	finalcolor.rgb = objects + clamp(background, 0.0, 1.0);
+	//finalcolor.rgb = dscolor + fullcolor.rgb - backcolor.rgb;
+
 	outColor = finalcolor;
 }

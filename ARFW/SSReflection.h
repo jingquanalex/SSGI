@@ -21,12 +21,17 @@ private:
 	float cameraFadeStart = 0.98f;
 	float cameraFadeLength = 0.01f;
 
-	int maxMipLevels = 5;
+	int maxMipLevels = 7;
+	float mipBasePower = 2.5;
 	int gaussianKernelRadius = 5;
 	float gaussianSigma = 5.0f;
 	float gaussianBSigma = 10.1f;
 
+	float roughness = 1.0f;
+	float sharpness = 0.2f;
+	float sharpnessPower = 2.0f;
 	float coneTraceMipLevel = 0;
+
 	
 	Quad* quad;
 	Shader* ssReflectionPassShader;
@@ -65,11 +70,14 @@ public:
 	void setCameraFadeStart(float value);
 	void setCameraFadeLength(float value);
 	void setMaxMipLevels(int value);
+	void setMipBasePower(float value);
 	void setGaussianKernelRadius(int value);
 	void setGaussianSigma(float value);
 	void setGaussianBSigma(float value);
 	void setConeTraceMipLevel(float value);
 	void setRoughness(float value);
+	void setSharpness(float value);
+	void setSharpnessPower(float value);
 
 	float getMaxSteps() const;
 	float getBinarySearchSteps() const;
@@ -83,8 +91,11 @@ public:
 	float setCameraFadeStart() const;
 	float setCameraFadeLength() const;
 	int getMaxMipLevels() const;
+	float getMipBasePower() const;
 	int getGaussianKernelRadius() const;
 	float getGaussianSigma() const;
 	float getGaussianBSigma() const;
 	float getConeTraceMipLevel() const;
+	float getSharpness() const;
+	float getSharpnessPower() const;
 };

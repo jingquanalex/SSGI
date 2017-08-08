@@ -250,17 +250,20 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	gui->addVariable<int>("maxMipLevels",
 		[&](const int &value) { ssr->setMaxMipLevels(value); },
 		[&]() { return ssr->getMaxMipLevels(); });
-	gui->addVariable<int>("kernelRadius",
-		[&](const int &value) { ssr->setGaussianKernelRadius(value); },
-		[&]() { return ssr->getGaussianKernelRadius(); });
-	gui->addVariable<float>("sigma",
-		[&](const float &value) { ssr->setGaussianSigma(value); },
-		[&]() { return ssr->getGaussianSigma(); });
+	gui->addVariable<float>("mipBasePower",
+		[&](const float &value) { ssr->setMipBasePower(value); },
+		[&]() { return ssr->getMipBasePower(); });
 	gui->addVariable<float>("bSigma",
 		[&](const float &value) { ssr->setGaussianBSigma(value); },
 		[&]() { return ssr->getGaussianBSigma(); });
 
-	gui->addGroup("Cone trace reflections");
+	gui->addGroup("Blurry reflections");
+	gui->addVariable<float>("sharpness",
+		[&](const float &value) { ssr->setSharpness(value); },
+		[&]() { return ssr->getSharpness(); });
+	gui->addVariable<float>("sharpnessPower",
+		[&](const float &value) { ssr->setSharpnessPower(value); },
+		[&]() { return ssr->getSharpnessPower(); });
 	gui->addVariable<float>("mipLevel",
 		[&](const float &value) { ssr->setConeTraceMipLevel(value); },
 		[&]() { return ssr->getConeTraceMipLevel(); });

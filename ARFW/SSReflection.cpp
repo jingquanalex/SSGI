@@ -14,8 +14,8 @@ SSReflection::SSReflection(int width, int height)
 	bufferHeight = height;
 	cFilterWidth = width;
 	cFilterHeight = height;
-	maxMipLevels = 1 + (int)floor(log2(glm::max(bufferWidth, bufferHeight)));
-	//maxMipLevels = 5;
+	//maxMipLevels = 1 + (int)floor(log2(glm::max(bufferWidth, bufferHeight)));
+	maxMipLevels = 5;
 	computeGaussianKernel();
 
 	glGenTextures(1, &cReflection);
@@ -131,8 +131,11 @@ void SSReflection::draw(GLuint texPosition, GLuint texNormal, GLuint texLight, G
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, texNormal);
 
-	for (int mip = 0; mip < maxMipLevels; mip++)
+	for (int mip = 0; mip <= maxMipLevels; mip++)
 	{
+		gaussianKernelRadius = (int)glm::clamp(pow(mipBasePower, mip), 0.0f, 64.0f);
+		gaussianSigma = (float)gaussianKernelRadius;
+		computeGaussianKernel();
 		glUniform1i(glGetUniformLocation(gaussianBlurShader->getShaderId(), "mipLevel"), mip);
 
 		// Reisze framebuffer according to mip-level size
@@ -237,7 +240,11 @@ void SSReflection::initializeShaders()
 	glUniform1i(glGetUniformLocation(coneTraceShader->getShaderId(), "inReflection"), 3);
 	glUniform1i(glGetUniformLocation(coneTraceShader->getShaderId(), "inReflectionRay"), 4);
 	glUniform1i(glGetUniformLocation(coneTraceShader->getShaderId(), "inAmbientOcclusion"), 5);
-	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "mipLevel"), (float)coneTraceMipLevel);
+	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "roughness"), roughness);
+	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "sharpness"), sharpness);
+	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "sharpnessPower"), sharpnessPower);
+	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "mipLevel"), coneTraceMipLevel);
+	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "maxMipLevel"), (float)maxMipLevels);
 }
 
 void SSReflection::recompileShaders()
@@ -349,6 +356,13 @@ void SSReflection::setCameraFadeLength(float value)
 void SSReflection::setMaxMipLevels(int value)
 {
 	maxMipLevels = value;
+	coneTraceShader->apply();
+	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "maxMipLevel"), (float)maxMipLevels);
+}
+
+void SSReflection::setMipBasePower(float value)
+{
+	mipBasePower = value;
 }
 
 void SSReflection::setGaussianKernelRadius(int value)
@@ -379,8 +393,23 @@ void SSReflection::setConeTraceMipLevel(float value)
 
 void SSReflection::setRoughness(float value)
 {
+	roughness = value;
 	coneTraceShader->apply();
-	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "roughness"), value);
+	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "roughness"), roughness);
+}
+
+void SSReflection::setSharpness(float value)
+{
+	sharpness = value;
+	coneTraceShader->apply();
+	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "sharpness"), sharpness);
+}
+
+void SSReflection::setSharpnessPower(float value)
+{
+	sharpnessPower = value;
+	coneTraceShader->apply();
+	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "sharpnessPower"), sharpnessPower);
 }
 
 float SSReflection::getMaxSteps() const
@@ -443,6 +472,11 @@ int SSReflection::getMaxMipLevels() const
 	return maxMipLevels;
 }
 
+float SSReflection::getMipBasePower() const
+{
+	return mipBasePower;
+}
+
 int SSReflection::getGaussianKernelRadius() const
 {
 	return gaussianKernelRadius;
@@ -461,4 +495,14 @@ float SSReflection::getGaussianBSigma() const
 float SSReflection::getConeTraceMipLevel() const
 {
 	return coneTraceMipLevel;
+}
+
+float SSReflection::getSharpness() const
+{
+	return sharpness;
+}
+
+float SSReflection::getSharpnessPower() const
+{
+	return sharpnessPower;
 }

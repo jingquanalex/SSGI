@@ -12,9 +12,10 @@ uniform sampler2D inReflectionRay;
 uniform sampler2D inAmbientOcclusion;
 
 uniform float roughness = 1;
-uniform float maxRayTraceDistance = 1;
+uniform float sharpness = 0.2;
+uniform float sharpnessPower = 2;
 uniform float mipLevel = 0;
-uniform float maxMipLevel = 11;
+uniform float maxMipLevel = 5;
 uniform vec2 bufferSize = vec2(1920, 1080);
 
 // b = base, h = height, of isosceles triangle
@@ -32,62 +33,16 @@ void main()
 	vec4 reflectionRay = texture(inReflectionRay, TexCoord);
 	vec4 ao = textureLod(inAmbientOcclusion, TexCoord, mipLevel);
 	
-	vec3 reflectedColor = texture(inLight, reflectionRay.xy).rgb;
-	
-	// Cone tracing
-	float specPower = 1;
-	float coneAngle = cos(clamp(0.9708 + roughness, 0.0, 1.5));
-	
-	vec2 coneVec = reflectionRay.xy - TexCoord;
-	float adj = reflectionRay.z;
-	float opp = 0;
-	float r = 0;
-	float mip = 0;
-	
-	vec4 totalColor = vec4(0);
-	float totalWeight = 0;
-	
-	float maxMip = maxMipLevel;
-	for (float i = 0; i < maxMip; i++)
-	{
-		opp = 2 * tan(coneAngle) * adj;
-		r = inRadius(opp, adj);
-		
-		//vec2 samplePoint = TexCoord + normalize(coneVec) * (adj - r);
-		
-		mip = log2(r * max(bufferSize.x, bufferSize.y));
-		//mip = roughness * maxMip * r;
-		
-		vec4 sampleColor = textureLod(inReflection, TexCoord, mip);
-		float weight = pow(1 - i / maxMip, 1);
-		
-        totalColor += sampleColor * weight;
-		totalWeight += weight;
-		
-		//if (mip > maxMipLevel) break;
-		
-		adj = adj - r * 2;
-	}
-	
-	totalColor /= totalWeight;
-	
-	vec3 finalColor = vec3(0);
-	
-	float distScaled = smoothstep(0.0, maxRayTraceDistance, reflectionRay.z);
-	mip = clamp(distScaled * roughness * pow(1 + roughness, 10), 0, 5);
-	vec4 distColor = textureLod(inReflection, TexCoord, mip);
+	float distScaled = smoothstep(0.0, sharpness * pow(1 - roughness, sharpnessPower), reflectionRay.z);
+	float mip = distScaled * maxMipLevel * roughness;
+	//mip = 2;
+	mip = clamp(mip, 0, maxMipLevel);
+	float mipAlpha = clamp(mip * 1, 0, maxMipLevel);
+	vec3 distColor = textureLod(inReflection, TexCoord, mip).rgb;
+	float distAlpha = textureLod(inReflection, TexCoord, mipAlpha).a;
+	vec4 finalColor = vec4(distColor, distAlpha);
 	
 	
-	finalColor = totalColor.rgb;
-	//finalColor = reflection.rgb;
-	finalColor = distColor.rgb;
-	//finalColor = light.rgb;
-	//finalColor = mix(light.rgb, (light.rgb + totalColor.rgb) / 2, reflection.a);
-	//finalColor = mix(light.rgb, totalColor.rgb, reflection.a);
-	//finalColor = vec3(totalColor.a);
-	//finalColor = ao.rgb;
-	
-	//outColor = textureLod(inReflection, TexCoord, reflectionRay.z * 22);
-	outColor = vec4(finalColor, distColor.a);
+	outColor = finalColor;
 	//outColor = vec4(finalColor, light.a);
 }
