@@ -25,52 +25,63 @@ uniform float bias = 0.005;
 uniform float intensity = 1.0;
 uniform float power = 1.0;
 
+const float epsilon = 0.0001;
+uniform int samples = 9;
+uniform vec2 bufferSize = vec2(1920, 1080);
+
+// Alchemy AO random disc samples
+vec2 randomSamples(int sampleNumber, int samples, ivec2 pxCoord)
+{
+	float radius = float(sampleNumber + 0.5) * (1.0 / samples);
+	float hash = (3 * pxCoord.x ^ pxCoord.y + pxCoord.x * pxCoord.y) * 10.0;
+	float angle = radius * (7 * 6.28) + hash;
+
+	return radius * vec2(cos(angle), sin(angle));
+}
 
 void main()
 {
+	if (samples == 0)
+	{
+		outColor = vec3(1);
+		return;
+	}
+	
 	vec3 position = texture(gPosition, TexCoord).xyz;
     vec3 normal = texture(gNormal, TexCoord).xyz;
 	
-	float occlusion = 0.0;
+	float sumOcclusion = 0.0;
 	vec3 sumColor = vec3(0);
+	ivec2 ssC = ivec2(bufferSize * TexCoord);
 	
-vec3 randomVec = vec3(1, 0, 0);
-	vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
-	vec3 bitangent = cross(normal, tangent);
-	mat3 TBN = mat3(tangent, bitangent, normal);
-	
-	for(int i = 0; i < kernelSize; ++i)
+	for (int i = 0; i < samples; i++)
 	{
-		// transform offset vectors from tangent space to view space
-		vec3 offsetVec = TBN * inSamples[i];
-		vec3 fragPos = position + offsetVec * kernelRadius;
+		vec2 unitOffset = randomSamples(i, samples, ssC);
+		float ssRadius = -1 * kernelRadius / position.z;
+		vec2 sampleCoord = TexCoord + unitOffset * ssRadius;
+		vec3 samplePosition = texture(gPosition, sampleCoord).xyz;
+		//vec3 sampleColor = texture(gColor, sampleCoord).rgb;
+
+		vec3 v = samplePosition - position;
+		float vv = dot(v, v);
+		float vn = dot(v, normal);
+		float sD = max(pow(kernelRadius * kernelRadius - vv, 3), 0);
+		float sS = max((vn - bias) / (vv + epsilon), 0);
 		
-		// transform offset vectors from view space to window space
-		vec4 offset = kinectProjection * vec4(fragPos, 1.0);
-		offset.xy /= offset.w;
-		offset.xy = offset.xy * 0.5 + 0.5;
-		
-		float sampleDepth = texture(gPosition, offset.xy).z;
-		
-		if (sampleDepth > fragPos.z + bias)
-		{
-			vec3 sampleColor = texture(gColor, offset.xy).rgb;
-			float rangeCheck = smoothstep(0.0, 1.0, kernelRadius / abs(position.z - sampleDepth));
-			
-			occlusion += rangeCheck;
-			sumColor += (1 - sampleColor) * (rangeCheck);
-		}
+		//sumColor += (1 - sampleColor) * sD * sS;
+		sumOcclusion += sD * sS;
+		//sumOcclusion += max((vn - bias) / (vv + epsilon), 0);
 	}
-	occlusion = occlusion / kernelSize;
-	sumColor = sumColor / kernelSize;
 	
-	occlusion = clamp(1 - occlusion * intensity, 0, 1);
+	float occlusion = sumOcclusion * 5.0 / (pow(kernelRadius, 6) * samples);
+	occlusion = max(1 - occlusion * intensity, 0);
 	occlusion = pow(occlusion, power);
 	
-	float colorIntensity = intensity * 1;
-	float colorPower = power * 1;
-	sumColor = clamp(1 - sumColor * colorIntensity, 0, 1);
-	sumColor = vec3(pow(sumColor.r, colorPower), pow(sumColor.g, colorPower), pow(sumColor.b, colorPower));
+	/*occlusion = max(1 - occlusion * (intensity * 2) / samples, 0);
+	occlusion = pow(occlusion, power);*/
 	
-	outColor = vec3(sumColor * occlusion);
+	/*vec3 color = sumColor * 5.0 / (pow(kernelRadius, 6) * samples);
+	color = max(1 - color * intensity * 1, 0);*/
+	
+	outColor = vec3(occlusion);
 }

@@ -397,6 +397,7 @@ void main()
 	
 	vec3 color = texture(inColor, TexCoord).rgb;
 	vec3 reflectedColor = texture(inColor, hitCoord).rgb;
+	reflectedColor.rgb = pow(reflectedColor.rgb, vec3(2.2));
 	
 	/*const float MAX_REFLECTION_LOD = 5.0;
 	vec3 reflectedNormal = texture(gNormal, hitCoord).rgb;

@@ -15,7 +15,6 @@ SSReflection::SSReflection(int width, int height)
 	cFilterWidth = width;
 	cFilterHeight = height;
 	//maxMipLevels = 1 + (int)floor(log2(glm::max(bufferWidth, bufferHeight)));
-	maxMipLevels = 5;
 	computeGaussianKernel();
 
 	glGenTextures(1, &cReflection);
@@ -36,7 +35,7 @@ SSReflection::SSReflection(int width, int height)
 
 	glGenTextures(1, &cAmbientOcclusion);
 	glBindTexture(GL_TEXTURE_2D, cAmbientOcclusion);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bufferWidth, bufferHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -44,7 +43,7 @@ SSReflection::SSReflection(int width, int height)
 
 	glGenTextures(1, &cLightFilterH);
 	glBindTexture(GL_TEXTURE_2D, cLightFilterH);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cFilterWidth, cFilterHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, cFilterWidth, cFilterHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -53,7 +52,7 @@ SSReflection::SSReflection(int width, int height)
 
 	glGenTextures(1, &cLightFilterV);
 	glBindTexture(GL_TEXTURE_2D, cLightFilterV);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cFilterWidth, cFilterHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, cFilterWidth, cFilterHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -62,7 +61,7 @@ SSReflection::SSReflection(int width, int height)
 
 	glGenTextures(1, &cLightFilterH2);
 	glBindTexture(GL_TEXTURE_2D, cLightFilterH2);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cFilterWidth, cFilterHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, cFilterWidth, cFilterHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -71,7 +70,7 @@ SSReflection::SSReflection(int width, int height)
 
 	glGenTextures(1, &cLightFilterV2);
 	glBindTexture(GL_TEXTURE_2D, cLightFilterV2);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cFilterWidth, cFilterHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, cFilterWidth, cFilterHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);

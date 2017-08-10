@@ -7,7 +7,7 @@ layout (location = 1) out vec3 gNormal;
 layout (location = 2) out vec4 gColor;
 layout (location = 3) out vec3 outDsPosition;
 layout (location = 4) out vec3 outDsNormal;
-layout (location = 5) out vec3 outDsColor;
+layout (location = 5) out vec4 outDsColor;
 
 uniform sampler2D inPosition;
 uniform sampler2D inNormal;
@@ -26,7 +26,8 @@ void main()
 	// Depth sensor outputs
 	vec3 dsposition = texture(dsPosition, TexCoord).rgb;
 	vec3 dsnormal = texture(dsNormal, TexCoord).rgb;
-	vec3 dscolor = texture(dsColor, TexCoord).rgb;
+	vec4 dscolor = texture(dsColor, TexCoord);
+	dscolor.a = 0;
 	
 	// Mix gBuffer and kinect position and color
 	vec3 mixPosition = position;
@@ -37,15 +38,19 @@ void main()
 	{
 		mixPosition = dsposition;
 		mixNormal = dsnormal;
-		mixColor = vec4(dscolor, 0);
+		mixColor = vec4(dscolor.rgb, 0);
 	}
 	
 	if (mixColor.a == 0)
 	{
 		mixPosition = dsposition;
 		mixNormal = dsnormal;
-		mixColor.rgb = dscolor;
+		mixColor.rgb = dscolor.rgb;
 	}
+	
+	// Convert colors to linear space
+	mixColor.rgb = pow(mixColor.rgb, vec3(2.2));
+	dscolor.rgb = pow(dscolor.rgb, vec3(2.2));
 	
 	gPosition = mixPosition;
 	gNormal = mixNormal;

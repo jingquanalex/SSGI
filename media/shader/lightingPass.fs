@@ -3,6 +3,7 @@
 in vec2 TexCoord;
 
 layout (location = 0) out vec4 outColor;
+//layout (location = 1) out vec4 outReflection;
 
 layout (std140, binding = 9) uniform MatCam
 {
@@ -21,8 +22,6 @@ uniform sampler2D gPosition;
 uniform sampler2D gNormal;
 uniform sampler2D gColor;
 uniform sampler2D aoMap;
-uniform sampler2D dsColor;
-uniform sampler2D dsDepth;
 uniform samplerCube irradianceMap;
 uniform samplerCube prefilterMap;
 uniform sampler2D brdfLUT;
@@ -36,11 +35,6 @@ uniform float metallic;
 uniform float roughness;
 const float pi = 3.1415926;
 
-// Display mode:
-// 1 - Full composite
-// 2 - Color only
-// 3 - SSAO only
-uniform int displayMode = 1;
 
 
 // Helper functions
@@ -99,9 +93,17 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }   
 
-vec3 render(vec3 P, vec3 N, vec4 inColor, vec4 inReflection, vec3 ao)
+vec3 render(vec3 P, vec3 N, vec4 inColor, vec4 inReflection, vec3 ao, out vec3 outEnvColor)
 {
-	vec3 albedo = pow(inColor.rgb, vec3(2.2));
+	vec3 albedo = inColor.rgb;
+	float mRoughness = roughness;
+	float mMetallic = metallic;
+	
+	if (inColor.a == 0)
+	{
+		mRoughness = 0.55;
+	}
+	
 	
 	vec3 V = normalize(cameraPosition - P);
 	//vec3 V = normalize(-P);
@@ -109,8 +111,7 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, vec4 inReflection, vec3 ao)
 	
 	// calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
     // of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)
-	vec3 F0 = vec3(0.04);
-    F0 = mix(F0, albedo, metallic);
+    vec3 F0 = mix(vec3(0.04), albedo, mMetallic);
 	
 	// reflectance equation
     vec3 Lo = vec3(0.0);
@@ -124,8 +125,8 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, vec4 inReflection, vec3 ao)
         vec3 radiance = lightColor * attenuation;
 
         // Cook-Torrance BRDF
-        float NDF = DistributionGGX(N, H, roughness);   
-        float G   = GeometrySmith(N, V, L, roughness);    
+        float NDF = DistributionGGX(N, H, mRoughness);   
+        float G   = GeometrySmith(N, V, L, mRoughness);    
         vec3 F    = fresnelSchlick(max(dot(H, V), 0.0), F0);        
         
         vec3 nominator    = NDF * G * F;
@@ -141,7 +142,7 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, vec4 inReflection, vec3 ao)
         // multiply kD by the inverse metalness such that only non-metals 
         // have diffuse lighting, or a linear blend if partly metal (pure metals
         // have no diffuse light).
-        kD *= 1.0 - metallic;	                
+        kD *= 1.0 - mMetallic;	                
             
         // scale light by NdotL
         float NdotL = max(dot(N, L), 0.0);        
@@ -151,45 +152,38 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, vec4 inReflection, vec3 ao)
     }
 	
 	// ambient lighting (we now use IBL as the ambient term)
-    vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
+    vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, mRoughness);
     
     vec3 kS = F;
     vec3 kD = 1.0 - kS;
-    kD *= 1.0 - metallic;
+    kD *= 1.0 - mMetallic;
 	
 	vec3 irradiance = texture(irradianceMap, N).rgb;
 	vec3 diffuse = irradiance * albedo;
 	
 	// sample both the pre-filter map and the BRDF lut and combine them together as per the Split-Sum approximation to get the IBL specular part.
     const float MAX_REFLECTION_LOD = 5.0;
-    vec3 prefilteredColor = textureLod(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
+    vec3 prefilteredColor = textureLod(prefilterMap, R, mRoughness * MAX_REFLECTION_LOD).rgb;
 	vec4 reflectionColor = inReflection;
-	//reflectionColor.rgb = mix(reflectionColor.rgb, reflectionColor.rgb * prefilteredColor, 1 - pow(1 - metallic, 5));
+	//reflectionColor.rgb += reflectionColor.rgb;
+	//reflectionColor.rgb = mix(reflectionColor.rgb, reflectionColor.rgb + prefilteredColor, 1 - pow(1 - metallic, 5));
 	//reflectionColor.rgb = mix(reflectionColor.rgb, prefilteredColor, roughness);
-	//reflectionColor.rgb *= prefilteredColor;
-	reflectionColor.rgb = mix(reflectionColor.rgb, reflectionColor.rgb * irradiance, 1 - pow(1 - metallic, 5));
-	reflectionColor.a *= 1 - pow(roughness, 8);
+	//reflectionColor.rgb = mix(reflectionColor.rgb, reflectionColor.rgb * irradiance, 1 - pow(1 - metallic, 5));
+	//reflectionColor.a *= 1 - pow(metallic, 8);
 	vec3 envColor = mix(prefilteredColor, reflectionColor.rgb, reflectionColor.a);
 	//envColor = prefilteredColor;
 	//envColor = reflectionColor.rgb;
 	
 	//vec3 dscolor = texture(dsColor, TexCoord).rgb;
 	//envColor = mix(envColor, dscolor, 1-inColor.a);
+	outEnvColor = envColor;
 	
-    vec2 brdf = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+    vec2 brdf = texture(brdfLUT, vec2(max(dot(N, V), 0.0), mRoughness)).rg;
     vec3 specular = envColor * (F * brdf.x + brdf.y);
 
     vec3 ambient = (kD * diffuse + specular) * ao;
     vec3 color = ambient + Lo;
 	
-	// test
-	//color = diffuse * ao;
-
-    // HDR tonemapping
-    //color = color / (color + vec3(1.0));
-	
-    // gamma correct
-    color = pow(color, vec3(1.0 / 2.2));
 	
 	return color;
 }
@@ -210,50 +204,15 @@ void main()
 	// Reconstruct position from depth buffer
 	//position = depthToViewPosition(depth, TexCoord);
 	
-	// Depth sensor outputs
-	vec4 dscolor = texture(dsColor, TexCoord);
-	float dsdepth = texture(dsDepth, TexCoord).r;
 	
 	vec4 finalColor = vec4(0);
 	vec3 ao = texture(aoMap, TexCoord).rgb;
-	finalColor.rgb = render(positionWorld, normalWorld, color, reflection, ao);
-	finalColor.a = color.a;
+	vec3 envColor;
+	finalColor.rgb = render(positionWorld, normalWorld, color, reflection, ao, envColor);
 	
-	
-	switch (displayMode)
-	{
-		case 1:
-			outColor = finalColor;
-			break;
-		
-		case 2:
-			outColor = vec4(position, 1);
-			break;
-			
-		case 3:
-			outColor = vec4(normal, 1);
-			break;
-			
-		case 4:
-			outColor = vec4(ao, 1);
-			break;
-			
-		case 5:
-			outColor = color;
-			break;
-			
-		case 6:
-			outColor = vec4(color.a);
-			break;
-			
-		case 7:
-			outColor = vec4(dsdepth);
-			break;
-			
-		case 8:
-			outColor = vec4(vec3(reflection.rgb * reflection.a), 1);
-			break;
-	}
-	
+
+	outColor = finalColor;
 	outColor.a = color.a;
+	
+	//outReflection = reflection;
 }

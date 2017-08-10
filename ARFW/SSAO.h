@@ -14,13 +14,14 @@ private:
 
 	int kernelSize = 64;
 	float kernelRadius = 0.05f;
-	float bias = 0.001f;
-	float intensity = 1.0f;
-	float power = 2.0f;
+	int samples = 24;
+	float bias = 0.003f;
+	float intensity = 0.05f;
+	float power = 1.0f;
 	
 	std::vector<float> blurKernel;
-	int blurKernelRadius = 5;
-	float blurSigma = 5.0f;
+	int blurKernelRadius = 10;
+	float blurSigma = 10.0f;
 	float blurBSigma = 0.1f;
 
 	std::vector<glm::vec3> kernel;
@@ -49,6 +50,7 @@ public:
 	GLuint getTextureLayer(int layer) const;
 	int getKernelSize() const;
 	float getKernelRadius() const;
+	int getSamples() const;
 	float getBias() const;
 	float getIntensity() const;
 	float getPower() const;
@@ -58,6 +60,7 @@ public:
 
 	void setKernelSize(int value);
 	void setKernelRadius(float value);
+	void setSamples(int value);
 	void setBias(float value);
 	void setIntensity(float value);
 	void setPower(float value);

@@ -21,6 +21,7 @@ private:
 
 	bool initSuccess = false;
 	double currentTime, previousTime = 0.0;
+	bool pauseRender = false;
 
 	GLuint gBuffer, gComposeBuffer;
 	GLuint gPosition, gNormal, gColor, gDepth;
@@ -60,12 +61,9 @@ private:
 	nanogui::Color lightColor = nanogui::Color(1.00f, 0.48f, 0.49f, 1.0f);
 	float roughness = 0.24f;
 	float metallic = 0.1f;
+	float exposure = 2.0;
 
 	PBR* pbr;
-	GLuint environmentMap;
-	GLuint irradianceMap;
-	GLuint prefilterMap;
-	GLuint brdfLUT;
 
 	Shader* compositeShader;
 	Shader* outputShader;
@@ -93,7 +91,7 @@ public:
 
 	void initialize(nanogui::Screen* guiScreen);
 	void update();
-	void render();
+	void render(GLFWwindow* window);
 
 	void keyCallback(int key, int action);
 	void cursorPosCallback(double x, double y);
@@ -102,8 +100,10 @@ public:
 
 	float getRoughness() const;
 	float getMetallic() const;
+	float getExposure() const;
 
 	void setRoughness(float value);
 	void setMetallic(float value);
+	void setExposure(float value);
 
 };

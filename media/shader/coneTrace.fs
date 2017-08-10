@@ -26,15 +26,21 @@ float inRadius(float b, float h)
 
 void main()
 {
-	vec3 position = texture(gPosition, TexCoord).xyz;
-    vec3 normal = texture(gNormal, TexCoord).xyz;
+	//vec3 position = texture(gPosition, TexCoord).xyz;
+    //vec3 normal = texture(gNormal, TexCoord).xyz;
 	vec4 light = texture(inLight, TexCoord);
-	vec4 reflection = textureLod(inReflection, TexCoord, mipLevel);
+	//vec4 reflection = textureLod(inReflection, TexCoord, mipLevel);
 	vec4 reflectionRay = texture(inReflectionRay, TexCoord);
-	vec4 ao = textureLod(inAmbientOcclusion, TexCoord, mipLevel);
+	//vec4 ao = textureLod(inAmbientOcclusion, TexCoord, mipLevel);
 	
-	float distScaled = smoothstep(0.0, sharpness * pow(1 - roughness, sharpnessPower), reflectionRay.z);
-	float mip = distScaled * maxMipLevel * roughness;
+	float mRoughness = roughness;
+	/*if (light.a == 0)
+	{
+		mRoughness = 0.55;
+	}*/
+	
+	float distScaled = smoothstep(0.0, sharpness * pow(1 - mRoughness, sharpnessPower), reflectionRay.z);
+	float mip = distScaled * maxMipLevel * mRoughness;
 	//mip = 2;
 	mip = clamp(mip, 0, maxMipLevel);
 	float mipAlpha = clamp(mip * 1, 0, maxMipLevel);

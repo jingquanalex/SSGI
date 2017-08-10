@@ -47,8 +47,7 @@ int main(int argc, char *argv[])
 	{
 		glfwPollEvents();
 		scene->update();
-		scene->render();
-		glfwSwapBuffers(window);
+		scene->render(window);
 	}
 
 	delete scene;

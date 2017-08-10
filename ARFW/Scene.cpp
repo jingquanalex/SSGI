@@ -23,6 +23,7 @@ Scene::~Scene()
 
 void Scene::recompileShaders()
 {
+	pbr->recompileShaders();
 	sensor->recompileShaders();
 	gPassShader->recompile();
 	gComposePassShader->recompile();
@@ -51,17 +52,14 @@ void Scene::initializeShaders()
 	glUniform1i(glGetUniformLocation(gComposePassShader->getShaderId(), "dsColor"), 5);
 
 	lightingPassShader->apply();
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gPosition"), 0);
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gNormal"), 1);
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "gColor"), 2);
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "aoMap"), 3);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "dsColor"), 4);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "dsDepth"), 5);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "irradianceMap"), 6);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "prefilterMap"), 7);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "brdfLUT"), 8);
-	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "reflectionMap"), 9);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "irradianceMap"), 4);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "prefilterMap"), 5);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "brdfLUT"), 6);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "reflectionMap"), 7);
 
 	compositeShader->apply();
 	glUniform1i(glGetUniformLocation(compositeShader->getShaderId(), "fullScene"), 0);
@@ -69,7 +67,15 @@ void Scene::initializeShaders()
 	glUniform1i(glGetUniformLocation(compositeShader->getShaderId(), "dsColor"), 2);
 
 	outputShader->apply();
+	glUniform1i(glGetUniformLocation(outputShader->getShaderId(), "displayMode"), renderMode);
 	glUniform1i(glGetUniformLocation(outputShader->getShaderId(), "inColor"), 0);
+	glUniform1i(glGetUniformLocation(outputShader->getShaderId(), "gPosition"), 1);
+	glUniform1i(glGetUniformLocation(outputShader->getShaderId(), "gNormal"), 2);
+	glUniform1i(glGetUniformLocation(outputShader->getShaderId(), "gColor"), 3);
+	glUniform1i(glGetUniformLocation(outputShader->getShaderId(), "aoMap"), 4);
+	glUniform1i(glGetUniformLocation(outputShader->getShaderId(), "dsColor"), 5);
+	glUniform1i(glGetUniformLocation(outputShader->getShaderId(), "dsDepth"), 6);
+	glUniform1i(glGetUniformLocation(outputShader->getShaderId(), "tex1"), 7);
 }
 
 void Scene::initialize(nanogui::Screen* guiScreen)
@@ -181,12 +187,15 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 		[&]() { return sensor->getBlurSigma(); });
 
 	gui->addGroup("SSAO");
-	gui->addVariable<int>("kernelSize",
+	gui->addVariable<int>("kernelSize (SSAO)",
 		[&](const int &value) { ssao->setKernelSize(value); },
 		[&]() { return ssao->getKernelSize(); });
 	gui->addVariable<float>("kernelRadius",
 		[&](const float &value) { ssao->setKernelRadius(value); },
 		[&]() { return ssao->getKernelRadius(); });
+	gui->addVariable<int>("samples (AlchemyAO)",
+		[&](const int &value) { ssao->setSamples(value); },
+		[&]() { return ssao->getSamples(); });
 	gui->addVariable<float>("bias",
 		[&](const float &value) { ssao->setBias(value); },
 		[&]() { return ssao->getBias(); });
@@ -267,6 +276,11 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	gui->addVariable<float>("mipLevel",
 		[&](const float &value) { ssr->setConeTraceMipLevel(value); },
 		[&]() { return ssr->getConeTraceMipLevel(); });
+
+	gui->addGroup("Tonemapping");
+	gui->addVariable<float>("exposure",
+		[&](const float &value) { setExposure(value); },
+		[&]() { return getExposure(); });
 	
 	guiScreen->setVisible(true);
 	guiScreen->performLayout();
@@ -287,8 +301,8 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 	// Precompute PBR environment maps
-	pbr = new PBR();
-	pbr->precomputeEnvMaps(environmentMap, irradianceMap, prefilterMap, brdfLUT);
+	pbr = new PBR(bufferWidth, bufferHeight);
+	pbr->computeEnvMaps();
 
 	// Deferred rendering buffer
 	glGenFramebuffers(1, &gBuffer);
@@ -314,7 +328,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &gColor);
 	glBindTexture(GL_TEXTURE_2D, gColor);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bufferWidth, bufferHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -357,7 +371,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &gComposedColor);
 	glBindTexture(GL_TEXTURE_2D, gComposedColor);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bufferWidth, bufferHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -386,7 +400,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &dsColor);
 	glBindTexture(GL_TEXTURE_2D, dsColor);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, bufferWidth, bufferHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bufferWidth, bufferHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -405,7 +419,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &cLightingFull);
 	glBindTexture(GL_TEXTURE_2D, cLightingFull);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bufferWidth, bufferHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -413,7 +427,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &cLightingBack);
 	glBindTexture(GL_TEXTURE_2D, cLightingBack);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bufferWidth, bufferHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -421,7 +435,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &cFullScene);
 	glBindTexture(GL_TEXTURE_2D, cFullScene);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bufferWidth, bufferHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -429,7 +443,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &cBackScene);
 	glBindTexture(GL_TEXTURE_2D, cBackScene);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bufferWidth, bufferHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -437,7 +451,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &cFinalScene);
 	glBindTexture(GL_TEXTURE_2D, cFinalScene);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bufferWidth, bufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bufferWidth, bufferHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -482,6 +496,9 @@ void Scene::update()
 	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "roughness"), roughness);
 	ssr->setRoughness(roughness);
 
+	compositeShader->apply();
+	glUniform1f(glGetUniformLocation(compositeShader->getShaderId(), "exposure"), exposure);
+
 	camera->update(frameTime);
 	sensor->update();
 
@@ -500,9 +517,10 @@ void Scene::update()
 	}
 }
 
-void Scene::render()
+void Scene::render(GLFWwindow* window)
 {
 	if (!initSuccess) return;
+	if (pauseRender) return;
 
 	// GBuffer pass
 	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
@@ -567,7 +585,7 @@ void Scene::render()
 
 	// Screen space reflection pass
 	GLuint ao;
-	ssr->draw(gComposedPosition, gComposedNormal, cFullScene, irradianceMap, prefilterMap, cLightingFull, ao);
+	ssr->draw(gComposedPosition, gComposedNormal, cFinalScene, pbr->getIrradianceMapId(), pbr->getPrefilterMapId(), cLightingFull, ao);
 	
 	// Differential rendering: Rendered (virtual) scene pass
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
@@ -587,19 +605,13 @@ void Scene::render()
 	glBindTexture(GL_TEXTURE_2D, gComposedColor);
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D, ssao->getTextureLayer(0));
-
 	glActiveTexture(GL_TEXTURE4);
-	glBindTexture(GL_TEXTURE_2D, dsColor);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, pbr->getIrradianceMapId());
 	glActiveTexture(GL_TEXTURE5);
-	glBindTexture(GL_TEXTURE_2D, sensor->getDepthMapId());
-
+	glBindTexture(GL_TEXTURE_CUBE_MAP, pbr->getPrefilterMapId());
 	glActiveTexture(GL_TEXTURE6);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+	glBindTexture(GL_TEXTURE_2D, pbr->getBrdfLUTId());
 	glActiveTexture(GL_TEXTURE7);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
-	glActiveTexture(GL_TEXTURE8);
-	glBindTexture(GL_TEXTURE_2D, brdfLUT);
-	glActiveTexture(GL_TEXTURE9);
 	glBindTexture(GL_TEXTURE_2D, cLightingFull);
 
 	quad->draw();
@@ -608,7 +620,7 @@ void Scene::render()
 
 	
 	// Screen space reflection pass
-	ssr->draw(dsPosition, dsNormal, cBackScene, irradianceMap, prefilterMap, cLightingBack, ao);
+	ssr->draw(dsPosition, dsNormal, dsColor, pbr->getIrradianceMapId(), pbr->getPrefilterMapId(), cLightingBack, ao);
 	
 
 	// Differential rendering: Background (real) scene pass
@@ -629,19 +641,13 @@ void Scene::render()
 	glBindTexture(GL_TEXTURE_2D, dsColor);
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D, ssao->getTextureLayer(2));
-
 	glActiveTexture(GL_TEXTURE4);
-	glBindTexture(GL_TEXTURE_2D, dsColor);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, pbr->getIrradianceMapId());
 	glActiveTexture(GL_TEXTURE5);
-	glBindTexture(GL_TEXTURE_2D, sensor->getDepthMapId());
-
+	glBindTexture(GL_TEXTURE_CUBE_MAP, pbr->getPrefilterMapId());
 	glActiveTexture(GL_TEXTURE6);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+	glBindTexture(GL_TEXTURE_2D, pbr->getBrdfLUTId());
 	glActiveTexture(GL_TEXTURE7);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
-	glActiveTexture(GL_TEXTURE8);
-	glBindTexture(GL_TEXTURE_2D, brdfLUT);
-	glActiveTexture(GL_TEXTURE9);
 	glBindTexture(GL_TEXTURE_2D, cLightingBack);
 
 	quad->draw();
@@ -677,6 +683,20 @@ void Scene::render()
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, cFinalScene);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, gComposedPosition);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, gComposedNormal);
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, gComposedColor);
+	glActiveTexture(GL_TEXTURE4);
+	glBindTexture(GL_TEXTURE_2D, ssao->getTextureLayer(0));
+	glActiveTexture(GL_TEXTURE5);
+	glBindTexture(GL_TEXTURE_2D, dsColor);
+	glActiveTexture(GL_TEXTURE6);
+	glBindTexture(GL_TEXTURE_2D, sensor->getDepthMapId());
+	glActiveTexture(GL_TEXTURE7);
+	glBindTexture(GL_TEXTURE_2D, pbr->getReflectanceMapId());
 
 	quad->draw();
 
@@ -688,6 +708,10 @@ void Scene::render()
 		glEnable(GL_DEPTH_TEST); // Reset changed states
 		glDisable(GL_BLEND);
 	}
+
+	glfwSwapBuffers(window);
+
+	//pauseRender = true;
 }
 
 void Scene::spawnDragons(int numRadius)
@@ -719,8 +743,8 @@ void Scene::keyCallback(int key, int action)
 	if (key >= GLFW_KEY_1 && key <= GLFW_KEY_9 && action == GLFW_PRESS)
 	{
 		renderMode = key - 48;
-		lightingPassShader->apply();
-		glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "displayMode"), renderMode);
+		outputShader->apply();
+		glUniform1i(glGetUniformLocation(outputShader->getShaderId(), "displayMode"), renderMode);
 	}
 
 	if (key == GLFW_KEY_P && action == GLFW_PRESS)
@@ -731,6 +755,16 @@ void Scene::keyCallback(int key, int action)
 	if (key == GLFW_KEY_F1 && action == GLFW_PRESS)
 	{
 		isGUIVisible = !isGUIVisible;
+	}
+
+	if (key == GLFW_KEY_O && action == GLFW_PRESS)
+	{
+		pauseRender = false;
+	}
+
+	if (key == GLFW_KEY_Q && action == GLFW_PRESS)
+	{
+		pbr->computeReflectanceMap(gComposedNormal, gComposedColor);
 	}
 }
 
@@ -759,6 +793,11 @@ float Scene::getMetallic() const
 	return metallic;
 }
 
+float Scene::getExposure() const
+{
+	return exposure;
+}
+
 void Scene::setRoughness(float value)
 {
 	roughness = value;
@@ -768,4 +807,11 @@ void Scene::setRoughness(float value)
 void Scene::setMetallic(float value)
 {
 	metallic = value;
+}
+
+void Scene::setExposure(float value)
+{
+	exposure = value;
+	lightingPassShader->apply();
+	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "exposure"), exposure);
 }

@@ -55,7 +55,7 @@ SSAO::SSAO(int width, int height)
 
 	glGenTextures(1, &texSSAO);
 	glBindTexture(GL_TEXTURE_2D, texSSAO);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidthSmall, texHeightSmall, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, texWidthSmall, texHeightSmall, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -63,7 +63,7 @@ SSAO::SSAO(int width, int height)
 
 	glGenTextures(1, &texFilterH);
 	glBindTexture(GL_TEXTURE_2D, texFilterH);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -71,7 +71,7 @@ SSAO::SSAO(int width, int height)
 
 	glGenTextures(1, &texFilterV1);
 	glBindTexture(GL_TEXTURE_2D, texFilterV1);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -79,7 +79,7 @@ SSAO::SSAO(int width, int height)
 
 	glGenTextures(1, &texFilterV2);
 	glBindTexture(GL_TEXTURE_2D, texFilterV2);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -90,7 +90,7 @@ SSAO::SSAO(int width, int height)
 
 	glGenTextures(1, &texCombined);
 	glBindTexture(GL_TEXTURE_2D, texCombined);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, texWidth, texHeight, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -117,6 +117,7 @@ void SSAO::initializeShaders()
 	glUniform3fv(glGetUniformLocation(shader->getShaderId(), "inSamples"), 64, value_ptr(kernel[0]));
 	glUniform1i(glGetUniformLocation(shader->getShaderId(), "kernelSize"), kernelSize);
 	glUniform1f(glGetUniformLocation(shader->getShaderId(), "kernelRadius"), kernelRadius);
+	glUniform1i(glGetUniformLocation(shader->getShaderId(), "samples"), samples);
 	glUniform1f(glGetUniformLocation(shader->getShaderId(), "bias"), bias);
 	glUniform1f(glGetUniformLocation(shader->getShaderId(), "intensity"), intensity);
 	glUniform1f(glGetUniformLocation(shader->getShaderId(), "power"), power);
@@ -259,6 +260,11 @@ float SSAO::getKernelRadius() const
 	return kernelRadius;
 }
 
+int SSAO::getSamples() const
+{
+	return samples;
+}
+
 float SSAO::getBias() const
 {
 	return bias;
@@ -301,6 +307,13 @@ void SSAO::setKernelRadius(float value)
 	kernelRadius = value;
 	shader->apply();
 	glUniform1f(glGetUniformLocation(shader->getShaderId(), "kernelRadius"), kernelRadius);
+}
+
+void SSAO::setSamples(int value)
+{
+	samples = value;
+	shader->apply();
+	glUniform1i(glGetUniformLocation(shader->getShaderId(), "samples"), samples);
 }
 
 void SSAO::setBias(float value)

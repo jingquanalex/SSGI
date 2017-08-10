@@ -4,7 +4,17 @@ in vec2 TexCoord;
 
 layout (location = 0) out vec4 outColor;
 
+uniform int displayMode = 1;
+
 uniform sampler2D inColor;
+uniform sampler2D gPosition;
+uniform sampler2D gNormal;
+uniform sampler2D gColor;
+uniform sampler2D aoMap;
+uniform sampler2D dsColor;
+uniform sampler2D dsDepth;
+
+uniform sampler2D tex1;
 
 uniform vec2 bufferSize = vec2(1920, 1080);
 uniform vec2 texelSize = 1.0 / vec2(1920, 1080);
@@ -60,5 +70,52 @@ void main()
 	}
 	outColor = color;*/
 	
-	outColor = texture(inColor, TexCoord);
+    vec4 color = texture(inColor, TexCoord);
+	vec3 position = texture(gPosition, TexCoord).xyz;
+	vec3 normal = texture(gNormal, TexCoord).xyz;
+	vec3 albedo = texture(gColor, TexCoord).xyz;
+	vec3 ao = texture(aoMap, TexCoord).rgb;
+	
+	// Depth sensor outputs
+	vec4 dscolor = texture(dsColor, TexCoord);
+	float dsdepth = texture(dsDepth, TexCoord).r;
+	
+	vec3 texture1 = texture(tex1, TexCoord).rgb;
+	
+	switch (displayMode)
+	{
+		case 1:
+			outColor = color;
+			break;
+		
+		case 2:
+			outColor = vec4(position, 1);
+			break;
+			
+		case 3:
+			outColor = vec4(normal, 1);
+			break;
+			
+		case 4:
+			outColor = vec4(ao, 1);
+			break;
+			
+		case 5:
+			outColor = vec4(albedo, 1);
+			break;
+			
+		case 6:
+			outColor = vec4(dscolor.rgb, 1);
+			break;
+			
+		case 7:
+			outColor = vec4(vec3(dsdepth), 1);
+			break;
+			
+		case 8:
+			outColor = vec4(texture1, 1);
+			break;
+	}
+	
+	//outColor = color;
 }
