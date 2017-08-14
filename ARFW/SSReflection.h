@@ -27,7 +27,6 @@ private:
 	float gaussianSigma = 5.0f;
 	float gaussianBSigma = 10.1f;
 
-	float roughness = 1.0f;
 	float sharpness = 0.002f;
 	float sharpnessPower = 2.0f;
 	float coneTraceMipLevel = 0;
@@ -75,7 +74,6 @@ public:
 	void setGaussianSigma(float value);
 	void setGaussianBSigma(float value);
 	void setConeTraceMipLevel(float value);
-	void setRoughness(float value);
 	void setSharpness(float value);
 	void setSharpnessPower(float value);
 

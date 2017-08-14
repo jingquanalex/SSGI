@@ -324,7 +324,7 @@ float SSRayAlpha(vec3 rayOrigin, vec3 rayDirection, vec2 hitCoord, vec3 hitPoint
 	return alpha;
 }
 
-uniform float roughness = 0.99;
+const float roughness = 0.99;
 uniform sampler2D inColor;
 uniform samplerCube irradianceMap;
 uniform samplerCube prefilterMap;

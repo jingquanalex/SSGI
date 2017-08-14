@@ -85,6 +85,10 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	bufferWidth = g_windowWidth;
 	bufferHeight = g_windowHeight;
 
+	// Initialize depth sensor
+	sensor = new DSensor();
+	sensor->initialize(bufferWidth, bufferHeight);
+
 	// Load framework objects
 	timerRunOnceOnStart = new Timer(2.0f, 2.0f);
 	camera = new CameraFPS(bufferWidth, bufferHeight);
@@ -125,10 +129,6 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	texGreen = Image::loadTexture(g_ExePath + "../../media/green.png");
 	texBlue = Image::loadTexture(g_ExePath + "../../media/blue.png");
 
-	// Initialize depth sensor
-	sensor = new DSensor();
-	sensor->initialize(bufferWidth, bufferHeight);
-
 	randomFloats = uniform_real_distribution<float>(0.0f, 1.0f);
 
 	pointCloud = new PointCloud(sensor->getColorMapId(), sensor->getDepthMapId());
@@ -138,7 +138,6 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	gui = new nanogui::FormHelper(guiScreen);
 	nanoguiWindow = gui->addWindow(Eigen::Vector2i(10, 10), "ARFW");
 
-	gui->addGroup("Misc");
 	gui->addButton("Recompile Shaders", [&]()
 	{
 		recompileShaders();
@@ -166,6 +165,8 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	gui->addVariable("Position Y", lightPosition.y);
 	gui->addVariable("Position Z", lightPosition.z);
 	gui->addVariable("Color", lightColor);
+	gui->addVariable("Roughness (kinect)", bgRoughness)->setSpinnable(true);
+	gui->addVariable("Metallic (kinect)", bgMetallic)->setSpinnable(true);
 	gui->addVariable("Roughness", roughness)->setSpinnable(true);
 	gui->addVariable("Metallic", metallic)->setSpinnable(true);
 
@@ -322,18 +323,20 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	glGenFramebuffers(1, &gBuffer);
 	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
 
+	// Alpha - roughness
 	glGenTextures(1, &gPosition);
 	glBindTexture(GL_TEXTURE_2D, gPosition);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bufferWidth, bufferHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
 
+	// Alpha - Metallic
 	glGenTextures(1, &gNormal);
 	glBindTexture(GL_TEXTURE_2D, gNormal);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bufferWidth, bufferHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -367,7 +370,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &gComposedPosition);
 	glBindTexture(GL_TEXTURE_2D, gComposedPosition);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bufferWidth, bufferHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -376,7 +379,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &gComposedNormal);
 	glBindTexture(GL_TEXTURE_2D, gComposedNormal);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bufferWidth, bufferHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -396,7 +399,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	// Else differential rendering produces artifacts if lowres ds texture are directly used
 	glGenTextures(1, &dsPosition);
 	glBindTexture(GL_TEXTURE_2D, dsPosition);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bufferWidth, bufferHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -405,7 +408,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 
 	glGenTextures(1, &dsNormal);
 	glBindTexture(GL_TEXTURE_2D, dsNormal);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, bufferWidth, bufferHeight, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bufferWidth, bufferHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -501,13 +504,18 @@ void Scene::update()
 
 	Timer::updateTimers(frameTime);
 
+	gPassShader->apply();
+	glUniform1f(glGetUniformLocation(gPassShader->getShaderId(), "metallic"), metallic);
+	glUniform1f(glGetUniformLocation(gPassShader->getShaderId(), "roughness"), roughness);
+
+	gComposePassShader->apply();
+	glUniform1f(glGetUniformLocation(gComposePassShader->getShaderId(), "bgRoughness"), bgRoughness);
+	glUniform1f(glGetUniformLocation(gComposePassShader->getShaderId(), "bgMetallic"), bgMetallic);
+
 	lightingPassShader->apply();
 	glUniform3fv(glGetUniformLocation(lightingPassShader->getShaderId(), "cameraPosition"), 1, value_ptr(camera->getPosition()));
 	glUniform3fv(glGetUniformLocation(lightingPassShader->getShaderId(), "lightPosition"), 1, value_ptr(lightPosition));
 	glUniform3fv(glGetUniformLocation(lightingPassShader->getShaderId(), "lightColor"), 1, value_ptr(vec3(lightColor.r(), lightColor.g(), lightColor.b())));
-	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "metallic"), metallic);
-	glUniform1f(glGetUniformLocation(lightingPassShader->getShaderId(), "roughness"), roughness);
-	ssr->setRoughness(roughness);
 
 	compositeShader->apply();
 	glUniform1f(glGetUniformLocation(compositeShader->getShaderId(), "exposure"), exposure);
@@ -563,6 +571,17 @@ void Scene::render(GLFWwindow* window)
 		{
 			if (customPositions->at(i) == glm::vec3(0)) continue;
 
+			// Give each dragon a different material
+			int w = dragonNumRadius * 2 + 1;
+			float x = (float)i / (w - 1);
+			float y = (float)(i % (w - 1)) / w;
+
+			float mRoughness = x;
+			float mMetallic = y;
+
+			glUniform1f(glGetUniformLocation(gPassShader->getShaderId(), "metallic"), mMetallic);
+			glUniform1f(glGetUniformLocation(gPassShader->getShaderId(), "roughness"), mRoughness);
+
 			glActiveTexture(GL_TEXTURE0);
 			if (i % 4 == 0) glBindTexture(GL_TEXTURE_2D, texWhite);
 			else if (i % 4 == 1) glBindTexture(GL_TEXTURE_2D, texRed);
@@ -572,8 +591,8 @@ void Scene::render(GLFWwindow* window)
 			dragon->setScale(vec3(0.1f) * -customPositions->at(i).z);
 			float halfHeight = (dragon->getBoundingBox().Height / 2) * 0.8f;
 			dragon->setPosition(customPositions->at(i) + customNormals->at(i) * halfHeight);
-			//dragon->setRotationByAxisAngle(customNormals->at(i), customRandoms.at(i) * 360.0f);
-			dragon->setRotationByAxisAngle(customNormals->at(i), 0.0f);
+			dragon->setRotationByAxisAngle(customNormals->at(i), customRandoms.at(i) * 360.0f);
+			//dragon->setRotationByAxisAngle(customNormals->at(i), 0.0f);
 			dragon->drawMeshOnly();
 		}
 	}
@@ -825,6 +844,11 @@ void Scene::windowSizeCallback(int x, int y)
 	camera->setResolution(x, y);
 }
 
+float Scene::getBgRoughness() const
+{
+	return bgRoughness;
+}
+
 float Scene::getRoughness() const
 {
 	return roughness;
@@ -840,10 +864,14 @@ float Scene::getExposure() const
 	return exposure;
 }
 
+void Scene::setBgRoughness(float value)
+{
+	bgRoughness = value;
+}
+
 void Scene::setRoughness(float value)
 {
 	roughness = value;
-	ssr->setRoughness(roughness);
 }
 
 void Scene::setMetallic(float value)

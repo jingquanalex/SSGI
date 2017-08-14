@@ -32,11 +32,8 @@ uniform sampler2D reflectanceMap;
 uniform vec3 cameraPosition;
 uniform vec3 lightPosition;
 uniform vec3 lightColor;
-uniform float metallic;
-uniform float roughness;
+
 const float pi = 3.1415926;
-
-
 
 // Helper functions
 
@@ -94,17 +91,9 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }   
 
-vec3 render(vec3 P, vec3 N, vec3 csN, vec4 inColor, vec4 inReflection, vec3 ao, out vec3 outEnvColor)
+vec3 render(vec3 P, vec3 N, vec3 csN, vec4 inColor, vec4 inReflection, vec3 ao, float mRoughness, float mMetallic, out vec3 outEnvColor)
 {
 	vec3 albedo = inColor.rgb;
-	float mRoughness = roughness;
-	float mMetallic = metallic;
-	
-	if (inColor.a == 0)
-	{
-		mRoughness = 0.55;
-	}
-	
 	
 	vec3 V = normalize(cameraPosition - P);
 	//vec3 V = normalize(-P);
@@ -160,8 +149,8 @@ vec3 render(vec3 P, vec3 N, vec3 csN, vec4 inColor, vec4 inReflection, vec3 ao, 
     kD *= 1.0 - mMetallic;
 	
 	vec3 irradiance = texture(irradianceMap, N).rgb;
-	vec2 sampleCoord = vec2(1080 / 1920.0, 1) * csN.xy;
-	sampleCoord = sampleCoord * 0.5 + 0.5;
+	//vec2 sampleCoord = vec2(1080 / 1920.0, 1) * csN.xy;
+	//sampleCoord = sampleCoord * 0.5 + 0.5;
 	//irradiance = texture(reflectanceMap, sampleCoord).rgb;
 	vec3 diffuse = irradiance * albedo;
 	
@@ -198,12 +187,14 @@ vec3 render(vec3 P, vec3 N, vec3 csN, vec4 inColor, vec4 inReflection, vec3 ao, 
 void main()
 {
 	//float depth = texture(gDepth, TexCoord).r;
-	vec3 position = texture(gPosition, TexCoord).xyz;
-	vec3 positionWorld = (viewInverse * vec4(position, 1)).xyz;
-    vec3 normal = texture(gNormal, TexCoord).xyz;
-	vec3 normalWorld = mat3(viewInverse) * normal;
+	vec4 position = texture(gPosition, TexCoord);
+	vec3 positionWorld = (viewInverse * vec4(position.xyz, 1)).xyz;
+    vec4 normal = texture(gNormal, TexCoord);
+	vec3 normalWorld = mat3(viewInverse) * normal.xyz;
     vec4 color = texture(gColor, TexCoord);
 	vec4 reflection = texture(reflectionMap, TexCoord);
+	float roughness = position.a;
+	float metallic = normal.a;
 	
 	// Reconstruct position from depth buffer
 	//position = depthToViewPosition(depth, TexCoord);
@@ -212,7 +203,7 @@ void main()
 	vec4 finalColor = vec4(0);
 	vec3 ao = texture(aoMap, TexCoord).rgb;
 	vec3 envColor;
-	finalColor.rgb = render(positionWorld, normalWorld, normal, color, reflection, ao, envColor);
+	finalColor.rgb = render(positionWorld, normalWorld, normal.xyz, color, reflection, ao, roughness, metallic, envColor);
 	
 	/*vec2 sampleCoord = vec2(1080 / 1920.0, 1) * normal.xy;
 	sampleCoord = sampleCoord * 0.5 + 0.5;

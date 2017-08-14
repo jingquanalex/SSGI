@@ -239,7 +239,6 @@ void SSReflection::initializeShaders()
 	glUniform1i(glGetUniformLocation(coneTraceShader->getShaderId(), "inReflection"), 3);
 	glUniform1i(glGetUniformLocation(coneTraceShader->getShaderId(), "inReflectionRay"), 4);
 	glUniform1i(glGetUniformLocation(coneTraceShader->getShaderId(), "inAmbientOcclusion"), 5);
-	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "roughness"), roughness);
 	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "sharpness"), sharpness);
 	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "sharpnessPower"), sharpnessPower);
 	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "mipLevel"), coneTraceMipLevel);
@@ -388,13 +387,6 @@ void SSReflection::setConeTraceMipLevel(float value)
 	coneTraceMipLevel = value;
 	coneTraceShader->apply();
 	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "mipLevel"), coneTraceMipLevel);
-}
-
-void SSReflection::setRoughness(float value)
-{
-	roughness = value;
-	coneTraceShader->apply();
-	glUniform1f(glGetUniformLocation(coneTraceShader->getShaderId(), "roughness"), roughness);
 }
 
 void SSReflection::setSharpness(float value)

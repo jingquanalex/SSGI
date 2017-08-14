@@ -60,6 +60,8 @@ private:
 
 	glm::vec3 lightPosition = glm::vec3(0.0f, 1111.5f, 0.0f);
 	nanogui::Color lightColor = nanogui::Color(1.00f, 0.48f, 0.49f, 1.0f);
+	float bgRoughness = 0.3f;
+	float bgMetallic = 0.3f;
 	float roughness = 0.24f;
 	float metallic = 0.1f;
 	float exposure = 2.0;
@@ -99,10 +101,12 @@ public:
 	void mouseCallback(int button, int action);
 	void windowSizeCallback(int x, int y);
 
+	float getBgRoughness() const;
 	float getRoughness() const;
 	float getMetallic() const;
 	float getExposure() const;
 
+	void setBgRoughness(float value);
 	void setRoughness(float value);
 	void setMetallic(float value);
 	void setExposure(float value);
