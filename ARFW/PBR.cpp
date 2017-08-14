@@ -13,11 +13,17 @@ PBR::PBR(int windowWidth, int windowHeight)
 	cube->load("cube/cube.obj");
 	quad = new Quad();
 
+	imgToCubemapShader = new Shader("2dToCube");
 	hdrToCubemapShader = new Shader("hdrToCube");
 	hdrIrradianceShader = new Shader("hdrIrradianceCube");
 	prefilterShader = new Shader("hdrPrefilterCube");
 	brdfShader = new Shader("brdf");
 	reflectanceShader = new Shader("reflectance");
+
+	//hdrRadiance = Image::loadHDRI(g_ExePath + "../../media/hdr/Alexs_Apartment/Alexs_Apt_2k.hdr");
+	hdrRadiance = Image::loadTexture(g_ExePath + "../../media/hdr/bg.png"); // remember to use imgToCubemapShader
+
+	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 
 	glGenFramebuffers(1, &captureFBO);
 	glGenRenderbuffers(1, &captureRBO);
@@ -83,6 +89,7 @@ PBR::~PBR()
 
 void PBR::recompileShaders()
 {
+	imgToCubemapShader->recompile();
 	/*hdrToCubemapShader->recompile();
 	hdrIrradianceShader->recompile();
 	prefilterShader->recompile();
@@ -91,12 +98,22 @@ void PBR::recompileShaders()
 	reflectanceShader->recompile();
 }
 
+void PBR::recomputeEnvMaps(GLuint colorMap)
+{
+	hdrRadiance = colorMap;
+	//imgToCubemapShader->apply();
+	//glUniform1i(glGetUniformLocation(imgToCubemapShader->getShaderId(), "recapture"), 1);
+
+	computeEnvMaps();
+}
+
 void PBR::computeEnvMaps()
 {
+	// Initial GL states
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_BLEND);
+
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-	glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, captureWidth, captureHeight);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
 
 	// Load and convert HDR equirectangular map to cubemap texture
 	glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
@@ -110,22 +127,20 @@ void PBR::computeEnvMaps()
 		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
 	};
 
-	//GLuint hdrTexture = Image::loadHDRI(g_ExePath + "../../media/hdr/Alexs_Apartment/Alexs_Apt_2k.hdr");
-	GLuint hdrTexture = Image::loadHDRI(g_ExePath + "../../media/hdr/desktop.hdr");
 
 	// pbr: convert HDR equirectangular environment map to cubemap equivalent
-	hdrToCubemapShader->apply();
-	glUniform1i(glGetUniformLocation(hdrToCubemapShader->getShaderId(), "equirectangularMap"), 0);
-	glUniformMatrix4fv(glGetUniformLocation(hdrToCubemapShader->getShaderId(), "projection"), 1, GL_FALSE, value_ptr(captureProjection));
+	imgToCubemapShader->apply();
+	glUniform1i(glGetUniformLocation(imgToCubemapShader->getShaderId(), "colorMap"), 0);
+	glUniformMatrix4fv(glGetUniformLocation(imgToCubemapShader->getShaderId(), "projection"), 1, GL_FALSE, value_ptr(captureProjection));
 	
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, hdrTexture);
+	glBindTexture(GL_TEXTURE_2D, hdrRadiance);
 
 	glViewport(0, 0, captureWidth, captureHeight);
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
 	for (unsigned int i = 0; i < 6; ++i)
 	{
-		glUniformMatrix4fv(glGetUniformLocation(hdrToCubemapShader->getShaderId(), "view"), 1, GL_FALSE, value_ptr(captureViews[i]));
+		glUniformMatrix4fv(glGetUniformLocation(imgToCubemapShader->getShaderId(), "view"), 1, GL_FALSE, value_ptr(captureViews[i]));
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, environmentMap, 0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -141,8 +156,6 @@ void PBR::computeEnvMaps()
 	
 
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-	glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, irrdianceWidth, irrdianceHeight);
 
 	// pbr: solve diffuse integral by convolution to create an irradiance (cube)map.
 
@@ -179,8 +192,6 @@ void PBR::computeEnvMaps()
 		// reisze framebuffer according to mip-level size.
 		unsigned int mipWidth = (unsigned int)(prefilterWidth * std::pow(0.5f, mip));
 		unsigned int mipHeight = (unsigned int)(prefilterHeight * std::pow(0.5f, mip));
-		glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, mipWidth, mipHeight);
 		glViewport(0, 0, mipWidth, mipHeight);
 
 		float roughness = (float)mip / (float)(maxMipLevels - 1);
@@ -199,8 +210,6 @@ void PBR::computeEnvMaps()
 	// pbr: generate a 2D LUT from the BRDF equations used.
 	// then re-configure capture framebuffer object and render screen-space quad with BRDF shader.
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-	glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, brdfLUTWidth, brdfLUTHeight);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, brdfLUT, 0);
 
 	brdfShader->apply();
@@ -209,14 +218,11 @@ void PBR::computeEnvMaps()
 	quad->draw();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glBindRenderbuffer(GL_RENDERBUFFER, 0);
 }
 
 void PBR::computeReflectanceMap(GLuint normalMap, GLuint colorMap)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-	glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, windowWidth, windowHeight);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, reflectanceMap, 0);
 
 	glViewport(0, 0, windowWidth, windowHeight);
@@ -225,11 +231,14 @@ void PBR::computeReflectanceMap(GLuint normalMap, GLuint colorMap)
 	reflectanceShader->apply();
 	glUniform1i(glGetUniformLocation(reflectanceShader->getShaderId(), "gNormal"), 0);
 	glUniform1i(glGetUniformLocation(reflectanceShader->getShaderId(), "inColor"), 1);
+	glUniform1i(glGetUniformLocation(reflectanceShader->getShaderId(), "envMap"), 2);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, normalMap);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, colorMap);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
 
 	
 	quad->draw();

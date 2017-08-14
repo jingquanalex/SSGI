@@ -37,6 +37,7 @@ private:
 	Quad* quad = nullptr;
 	Object* dragon = nullptr;
 	Object* plane;
+	Object* knob;
 	GLuint texWhite, texRed, texGreen, texBlue;
 
 	std::uniform_real_distribution<float> randomFloats;

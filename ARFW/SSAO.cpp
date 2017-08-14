@@ -125,8 +125,10 @@ void SSAO::initializeShaders()
 	computeBlurKernel();
 	upsampleShader->apply();
 	glUniform1i(glGetUniformLocation(upsampleShader->getShaderId(), "inColor"), 0);
-	glUniform1i(glGetUniformLocation(upsampleShader->getShaderId(), "inNormal"), 1);
-	glUniform1f(glGetUniformLocation(upsampleShader->getShaderId(), "bsigma"), blurBSigma);
+	glUniform1i(glGetUniformLocation(upsampleShader->getShaderId(), "inPosition"), 1);
+	glUniform1i(glGetUniformLocation(upsampleShader->getShaderId(), "inNormal"), 2);
+	glUniform1f(glGetUniformLocation(upsampleShader->getShaderId(), "zsigma"), blurZSigma);
+	glUniform1f(glGetUniformLocation(upsampleShader->getShaderId(), "nsigma"), blurNSigma);
 
 	mixLayerShader->apply();
 	glUniform1i(glGetUniformLocation(mixLayerShader->getShaderId(), "layer1"), 0);
@@ -177,6 +179,8 @@ void SSAO::drawLayer(int layer, GLuint positionMapId, GLuint normalMapId, GLuint
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texSSAO);
 	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, positionMapId);
+	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, normalMapId);
 
 	quad->draw();
@@ -196,6 +200,8 @@ void SSAO::drawLayer(int layer, GLuint positionMapId, GLuint normalMapId, GLuint
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texFilterH);
 	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, positionMapId);
+	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, normalMapId);
 
 	quad->draw();
@@ -290,9 +296,14 @@ float SSAO::getBlurSigma() const
 	return blurSigma;
 }
 
-float SSAO::getBlurBSigma() const
+float SSAO::getBlurZSigma() const
 {
-	return blurBSigma;
+	return blurZSigma;
+}
+
+float SSAO::getBlurNSigma() const
+{
+	return blurNSigma;
 }
 
 void SSAO::setKernelSize(int value)
@@ -349,9 +360,16 @@ void SSAO::setBlurSigma(float value)
 	computeBlurKernel();
 }
 
-void SSAO::setBlurBSigma(float value)
+void SSAO::setBlurZSigma(float value)
 {
-	blurBSigma = value;
+	blurZSigma = value;
 	upsampleShader->apply();
-	glUniform1f(glGetUniformLocation(upsampleShader->getShaderId(), "bsigma"), blurBSigma);
+	glUniform1f(glGetUniformLocation(upsampleShader->getShaderId(), "zsigma"), blurZSigma);
+}
+
+void SSAO::setBlurNSigma(float value)
+{
+	blurNSigma = value;
+	upsampleShader->apply();
+	glUniform1f(glGetUniformLocation(upsampleShader->getShaderId(), "nsigma"), blurNSigma);
 }

@@ -26,6 +26,7 @@ uniform samplerCube irradianceMap;
 uniform samplerCube prefilterMap;
 uniform sampler2D brdfLUT;
 uniform sampler2D reflectionMap;
+uniform sampler2D reflectanceMap;
 
 // PBR variables
 uniform vec3 cameraPosition;
@@ -93,7 +94,7 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }   
 
-vec3 render(vec3 P, vec3 N, vec4 inColor, vec4 inReflection, vec3 ao, out vec3 outEnvColor)
+vec3 render(vec3 P, vec3 N, vec3 csN, vec4 inColor, vec4 inReflection, vec3 ao, out vec3 outEnvColor)
 {
 	vec3 albedo = inColor.rgb;
 	float mRoughness = roughness;
@@ -159,6 +160,9 @@ vec3 render(vec3 P, vec3 N, vec4 inColor, vec4 inReflection, vec3 ao, out vec3 o
     kD *= 1.0 - mMetallic;
 	
 	vec3 irradiance = texture(irradianceMap, N).rgb;
+	vec2 sampleCoord = vec2(1080 / 1920.0, 1) * csN.xy;
+	sampleCoord = sampleCoord * 0.5 + 0.5;
+	//irradiance = texture(reflectanceMap, sampleCoord).rgb;
 	vec3 diffuse = irradiance * albedo;
 	
 	// sample both the pre-filter map and the BRDF lut and combine them together as per the Split-Sum approximation to get the IBL specular part.
@@ -208,8 +212,12 @@ void main()
 	vec4 finalColor = vec4(0);
 	vec3 ao = texture(aoMap, TexCoord).rgb;
 	vec3 envColor;
-	finalColor.rgb = render(positionWorld, normalWorld, color, reflection, ao, envColor);
+	finalColor.rgb = render(positionWorld, normalWorld, normal, color, reflection, ao, envColor);
 	
+	/*vec2 sampleCoord = vec2(1080 / 1920.0, 1) * normal.xy;
+	sampleCoord = sampleCoord * 0.5 + 0.5;
+	vec3 reflColor = texture(reflectanceMap, sampleCoord).rgb;
+	finalColor.rgb /= reflColor;*/
 
 	outColor = finalColor;
 	outColor.a = color.a;

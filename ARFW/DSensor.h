@@ -52,7 +52,7 @@ private:
 	std::vector<float> blurKernel;
 	int blurKernelRadius = 32;
 	float blurSigma = 32.0f;
-	float blurBSigma = 1.0f;
+	float blurBSigma = 0.1f;
 	float blurBSigmaJBF = 0.00001f;
 	float blurSThresh = 0.02f;
 

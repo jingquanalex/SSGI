@@ -37,6 +37,7 @@ void DSensor::initializeShaders()
 	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "dsDepth"), 1);
 	glUniform1i(glGetUniformLocation(blurShader->getShaderId(), "kernelRadius"), blurKernelRadius);
 	glUniform1fv(glGetUniformLocation(blurShader->getShaderId(), "kernel"), blurKernelRadius * 2 + 1, &blurKernel[0]);
+	glUniform1f(glGetUniformLocation(blurShader->getShaderId(), "bsigma"), blurBSigma);
 
 	positionShader->apply();
 	glUniform1i(glGetUniformLocation(positionShader->getShaderId(), "dsColor"), 0);
@@ -672,6 +673,8 @@ void DSensor::setBlurSigma(float value)
 void DSensor::setBlurBSigma(float value)
 {
 	blurBSigma = value;
+	blurShader->apply();
+	glUniform1f(glGetUniformLocation(blurShader->getShaderId(), "bsigma"), blurBSigma);
 }
 
 

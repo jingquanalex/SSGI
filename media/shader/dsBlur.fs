@@ -11,6 +11,12 @@ uniform sampler2D dsDepth;
 uniform int isVertical = 0;
 uniform int kernelRadius = 4;
 uniform float kernel[128];
+uniform float bsigma = 0.1;
+
+float normpdf(float x, float s)
+{
+	return 1 / (s * s * 2 * 3.14159265f) * exp(-x * x / (2.0 * s * s)) / s;
+}
 
 void main()
 {
@@ -30,7 +36,8 @@ void main()
 	{
 		vec2 sampleCoord = TexCoord + i * texelSize;
 		float sampleValue = texture(dsDepth, sampleCoord).r;
-		float sampleWeight = kernel[kernelRadius + i];
+		//float sampleWeight = kernel[kernelRadius + i];
+		float sampleWeight = normpdf(dsdepth - sampleValue, bsigma) * kernel[kernelRadius + i];
 		
 		accumValue += sampleValue * sampleWeight;
 		accumWeight += sampleWeight;

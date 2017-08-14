@@ -77,7 +77,7 @@ void main()
 	occlusion = max(1 - occlusion * intensity, 0);
 	occlusion = pow(occlusion, power);
 	
-	/*occlusion = max(1 - occlusion * (intensity * 2) / samples, 0);
+	/*float occlusion = max(1 - sumOcclusion * (intensity * 2) / samples, 0);
 	occlusion = pow(occlusion, power);*/
 	
 	/*vec3 color = sumColor * 5.0 / (pow(kernelRadius, 6) * samples);

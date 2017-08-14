@@ -260,7 +260,7 @@ bool traceSSRay(vec3 rayOrigin, vec3 rayDirection, float jitter,
     } // pixel on ray
 	
 	// Binary search refinement
-	if (binarySearchSteps > 0.0 && pixelStride > 1.0 && intersect)
+	if (binarySearchSteps > 0.0 && intersect)
 	{
 		// Step back one step and half the delta
 		PQk -= dPQk;
@@ -395,16 +395,14 @@ void main()
 	float alpha = SSRayAlpha(rayOrigin, rayDirection, hitCoord, hitPoint, steps);
 	alpha = alpha * float(intersect);
 	
-	vec3 color = texture(inColor, TexCoord).rgb;
+	// Ray reflects virtual objects only
+	float objMask = texture(inColor, TexCoord).a;
+	float hitMask = texture(inColor, hitCoord).a;
+	alpha *= float(int(objMask) | int(hitMask));
+	
 	vec3 reflectedColor = texture(inColor, hitCoord).rgb;
 	reflectedColor.rgb = pow(reflectedColor.rgb, vec3(2.2));
 	
-	/*const float MAX_REFLECTION_LOD = 5.0;
-	vec3 reflectedNormal = texture(gNormal, hitCoord).rgb;
-	vec3 rN = mat3(viewInverse) * reflectedNormal;
-    vec3 prefilteredColor = textureLod(prefilterMap, rN, 0.24 * MAX_REFLECTION_LOD).rgb;
-	
-	outReflection = vec4(mix((color+prefilteredColor)/2, prefilteredColor, alpha), alpha);*/
 	outReflection = vec4(reflectedColor, alpha);
 	outReflectionRay = vec4(hitCoord, distance(rayOrigin, hitPoint), float(intersect));
 	

@@ -16,13 +16,14 @@ private:
 	float kernelRadius = 0.05f;
 	int samples = 24;
 	float bias = 0.003f;
-	float intensity = 0.05f;
-	float power = 1.0f;
+	float intensity = 0.01f;
+	float power = 10.0f;
 	
 	std::vector<float> blurKernel;
-	int blurKernelRadius = 10;
-	float blurSigma = 10.0f;
-	float blurBSigma = 0.1f;
+	int blurKernelRadius = 20;
+	float blurSigma = 20.0f;
+	float blurZSigma = 0.005f;
+	float blurNSigma = 0.5f;
 
 	std::vector<glm::vec3> kernel;
 	GLuint noiseTexId;
@@ -56,7 +57,8 @@ public:
 	float getPower() const;
 	int getBlurKernelRadius() const;
 	float getBlurSigma() const;
-	float getBlurBSigma() const;
+	float getBlurZSigma() const;
+	float getBlurNSigma() const;
 
 	void setKernelSize(int value);
 	void setKernelRadius(float value);
@@ -66,7 +68,7 @@ public:
 	void setPower(float value);
 	void setBlurKernelRadius(int value);
 	void setBlurSigma(float value);
-	void setBlurBSigma(float value);
-
+	void setBlurZSigma(float value);
+	void setBlurNSigma(float value);
 
 };

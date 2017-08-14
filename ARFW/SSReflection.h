@@ -8,12 +8,12 @@ class SSReflection
 
 private:
 
-	float maxSteps = 200.0f;
+	float maxSteps = 100.0f;
 	float binarySearchSteps = 20.0f;
-	float maxRayTraceDistance = 0.2f;
+	float maxRayTraceDistance = 1.0f;
 	float nearPlaneZ = -0.01f;
 	float rayZThickness = 0.01f;
-	float stride = 1.0f;
+	float stride = 2.0f;
 	float strideZCutoff = 1.0f;
 	float jitterFactor = 0.5f;
 
@@ -21,14 +21,14 @@ private:
 	float cameraFadeStart = 0.98f;
 	float cameraFadeLength = 0.01f;
 
-	int maxMipLevels = 7;
-	float mipBasePower = 2.5;
+	int maxMipLevels = 11;
+	float mipBasePower = 5.0f;
 	int gaussianKernelRadius = 5;
 	float gaussianSigma = 5.0f;
 	float gaussianBSigma = 10.1f;
 
 	float roughness = 1.0f;
-	float sharpness = 0.2f;
+	float sharpness = 0.002f;
 	float sharpnessPower = 2.0f;
 	float coneTraceMipLevel = 0;
 

@@ -60,6 +60,7 @@ void Scene::initializeShaders()
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "prefilterMap"), 5);
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "brdfLUT"), 6);
 	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "reflectionMap"), 7);
+	glUniform1i(glGetUniformLocation(lightingPassShader->getShaderId(), "reflectanceMap"), 8);
 
 	compositeShader->apply();
 	glUniform1i(glGetUniformLocation(compositeShader->getShaderId(), "fullScene"), 0);
@@ -85,7 +86,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	bufferHeight = g_windowHeight;
 
 	// Load framework objects
-	timerRunOnceOnStart = new Timer(1.0f, 1.0f);
+	timerRunOnceOnStart = new Timer(2.0f, 2.0f);
 	camera = new CameraFPS(bufferWidth, bufferHeight);
 	camera->setActive(true);
 	camera->setMoveSpeed(0.5);
@@ -103,6 +104,11 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	plane->setPosition(vec3(0.0f, -0.2f, -0.3f));
 	plane->setScale(vec3(0.5f, 0.2f, 0.5f));
 	plane->load("cube/cube.obj");
+	knob = new Object();
+	knob->setGPassShaderId(gPassShader->getShaderId());
+	knob->setPosition(vec3(0.0f, -0.05f, 0.3f));
+	knob->setScale(vec3(0.05f));
+	knob->load("knob/mitsuba-sphere.obj");
 	dragon = new Object();
 	dragon->setGPassShaderId(gPassShader->getShaderId());
 	//dragon->setBoundingBoxVisible(true);
@@ -132,25 +138,27 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	gui = new nanogui::FormHelper(guiScreen);
 	nanoguiWindow = gui->addWindow(Eigen::Vector2i(10, 10), "ARFW");
 
-	gui->addGroup("Shader");
-	gui->addButton("Recompile", [&]()
+	gui->addGroup("Misc");
+	gui->addButton("Recompile Shaders", [&]()
 	{
 		recompileShaders();
 	});
 
-	gui->addGroup("Camera");
-	gui->addButton("Reset Orientation", [&]()
+	gui->addButton("Reset Camera", [&]()
 	{
 		camera->setPosition(vec3(0, 0, 0));
 		//camera->setDirection(vec3(0, 0, -1));
 		camera->setTargetPoint(camera->getPosition() + vec3(0, 0, -1));
 	});
 
-	gui->addGroup("Misc");
 	gui->addVariable("dragonNumRadius", dragonNumRadius);
 	gui->addButton("Spawn Dragons", [&]()
 	{
 		spawnDragons(dragonNumRadius);
+	});
+	gui->addButton("Recompute envmap", [&]()
+	{
+		pbr->recomputeEnvMaps(dsColor);
 	});
 
 	gui->addGroup("Light/Material");
@@ -178,13 +186,16 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 		[&](const int &value) { sensor->setFillPasses(value); },
 		[&]() { return sensor->getFillPasses(); });
 
-	gui->addGroup("Gaussian filter");
+	gui->addGroup("Bilateral filter");
 	gui->addVariable<int>("kernelRadius",
 		[&](const int &value) { sensor->setBlurKernelRadius(value); },
 		[&]() { return sensor->getBlurKernelRadius(); });
 	gui->addVariable<float>("sigma",
 		[&](const float &value) { sensor->setBlurSigma(value); },
 		[&]() { return sensor->getBlurSigma(); });
+	gui->addVariable<float>("sigma (depth)",
+		[&](const float &value) { sensor->setBlurBSigma(value); },
+		[&]() { return sensor->getBlurBSigma(); });
 
 	gui->addGroup("SSAO");
 	gui->addVariable<int>("kernelSize (SSAO)",
@@ -211,9 +222,12 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	gui->addVariable<float>("filterSigma",
 		[&](const float &value) { ssao->setBlurSigma(value); },
 		[&]() { return ssao->getBlurSigma(); });
-	gui->addVariable<float>("filterBSigma",
-		[&](const float &value) { ssao->setBlurBSigma(value); },
-		[&]() { return ssao->getBlurBSigma(); });
+	gui->addVariable<float>("filterSigma (depth)",
+		[&](const float &value) { ssao->setBlurZSigma(value); },
+		[&]() { return ssao->getBlurZSigma(); });
+	gui->addVariable<float>("filterSigma (normals)",
+		[&](const float &value) { ssao->setBlurNSigma(value); },
+		[&]() { return ssao->getBlurNSigma(); });
 
 	Eigen::Vector2i windowSize = nanoguiWindow->size();
 	nanoguiWindow2 = gui->addWindow(Eigen::Vector2i(250, 10), "More options");
@@ -262,7 +276,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	gui->addVariable<float>("mipBasePower",
 		[&](const float &value) { ssr->setMipBasePower(value); },
 		[&]() { return ssr->getMipBasePower(); });
-	gui->addVariable<float>("bSigma",
+	gui->addVariable<float>("bsigma",
 		[&](const float &value) { ssr->setGaussianBSigma(value); },
 		[&]() { return ssr->getGaussianBSigma(); });
 
@@ -463,11 +477,10 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	// Init shader uniforms
 	initializeShaders();
 
-	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 	glCullFace(GL_BACK);
 	glEnable(GL_DEPTH_TEST);
 	//glDepthFunc(GL_LEQUAL);
-	glClearColor(0.2f, 0.2f, 0.2f, 0.0f);
+	//glClearColor(0.2f, 0.2f, 0.2f, 0.0f);
 	//glEnable(GL_BLEND);
 	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -514,6 +527,7 @@ void Scene::update()
 	if (timerRunOnceOnStart->ticked())
 	{
 		spawnDragons(1);
+		pbr->recomputeEnvMaps(dsColor);
 	}
 }
 
@@ -521,6 +535,11 @@ void Scene::render(GLFWwindow* window)
 {
 	if (!initSuccess) return;
 	if (pauseRender) return;
+
+	// Initial GL states
+	glCullFace(GL_BACK);
+	glEnable(GL_DEPTH_TEST);
+	glDisable(GL_BLEND);
 
 	// GBuffer pass
 	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
@@ -531,7 +550,11 @@ void Scene::render(GLFWwindow* window)
 	
 	gPassShader->apply();
 
-	plane->draw();
+	//plane->draw();
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texWhite);
+	knob->drawMeshOnly();
 
 	// Draw dragon fest
 	if (customPositions != nullptr)
@@ -546,10 +569,11 @@ void Scene::render(GLFWwindow* window)
 			else if (i % 4 == 2) glBindTexture(GL_TEXTURE_2D, texGreen);
 			else if (i % 4 == 3) glBindTexture(GL_TEXTURE_2D, texBlue);
 
-			dragon->setScale(vec3(0.1f));
+			dragon->setScale(vec3(0.1f) * -customPositions->at(i).z);
 			float halfHeight = (dragon->getBoundingBox().Height / 2) * 0.8f;
 			dragon->setPosition(customPositions->at(i) + customNormals->at(i) * halfHeight);
-			dragon->setRotationByAxisAngle(customNormals->at(i), customRandoms.at(i) * 360.0f);
+			//dragon->setRotationByAxisAngle(customNormals->at(i), customRandoms.at(i) * 360.0f);
+			dragon->setRotationByAxisAngle(customNormals->at(i), 0.0f);
 			dragon->drawMeshOnly();
 		}
 	}
@@ -613,6 +637,8 @@ void Scene::render(GLFWwindow* window)
 	glBindTexture(GL_TEXTURE_2D, pbr->getBrdfLUTId());
 	glActiveTexture(GL_TEXTURE7);
 	glBindTexture(GL_TEXTURE_2D, cLightingFull);
+	glActiveTexture(GL_TEXTURE8);
+	glBindTexture(GL_TEXTURE_2D, pbr->getReflectanceMapId());
 
 	quad->draw();
 
@@ -649,6 +675,8 @@ void Scene::render(GLFWwindow* window)
 	glBindTexture(GL_TEXTURE_2D, pbr->getBrdfLUTId());
 	glActiveTexture(GL_TEXTURE7);
 	glBindTexture(GL_TEXTURE_2D, cLightingBack);
+	glActiveTexture(GL_TEXTURE8);
+	glBindTexture(GL_TEXTURE_2D, pbr->getReflectanceMapId());
 
 	quad->draw();
 
@@ -762,9 +790,23 @@ void Scene::keyCallback(int key, int action)
 		pauseRender = false;
 	}
 
-	if (key == GLFW_KEY_Q && action == GLFW_PRESS)
+	if (key == GLFW_KEY_L && action == GLFW_PRESS)
 	{
-		pbr->computeReflectanceMap(gComposedNormal, gComposedColor);
+		pbr->recompileShaders();
+		pbr->computeReflectanceMap(gComposedNormal, cFinalScene);
+	}
+
+	if (key == GLFW_KEY_E && action == GLFW_PRESS)
+	{
+		pbr->recompileShaders();
+		pbr->recomputeEnvMaps(dsColor);
+	}
+
+	if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
+	{
+		spawnDragons(dragonNumRadius);
+		pbr->recompileShaders();
+		pbr->recomputeEnvMaps(dsColor);
 	}
 }
 

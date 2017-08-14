@@ -128,7 +128,7 @@ void SSReflection::draw(GLuint texPosition, GLuint texNormal, GLuint texLight, G
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, cAmbientOcclusion);
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, texNormal);
+	glBindTexture(GL_TEXTURE_2D, texPosition);
 
 	for (int mip = 0; mip <= maxMipLevels; mip++)
 	{
@@ -229,7 +229,7 @@ void SSReflection::initializeShaders()
 	gaussianBlurShader->apply();
 	glUniform1i(glGetUniformLocation(gaussianBlurShader->getShaderId(), "inColor"), 0);
 	glUniform1i(glGetUniformLocation(gaussianBlurShader->getShaderId(), "inColor2"), 1);
-	glUniform1i(glGetUniformLocation(gaussianBlurShader->getShaderId(), "inNormal"), 2);
+	glUniform1i(glGetUniformLocation(gaussianBlurShader->getShaderId(), "inPosition"), 2);
 	glUniform1f(glGetUniformLocation(gaussianBlurShader->getShaderId(), "bsigma"), gaussianBSigma);
 
 	coneTraceShader->apply();

@@ -22,6 +22,7 @@ private:
 
 	int windowWidth, windowHeight;
 
+	Shader* imgToCubemapShader;
 	Shader* hdrToCubemapShader;
 	Shader* hdrIrradianceShader;
 	Shader* prefilterShader;
@@ -31,6 +32,7 @@ private:
 	GLuint captureFBO;
 	GLuint captureRBO;
 
+	GLuint hdrRadiance;
 	GLuint environmentMap;
 	GLuint irradianceMap;
 	GLuint prefilterMap;
@@ -44,6 +46,7 @@ public:
 
 	void recompileShaders();
 	void computeEnvMaps();
+	void recomputeEnvMaps(GLuint colorMap);
 	void computeReflectanceMap(GLuint normalMap, GLuint colorMap);
 
 	GLuint getEnvironmentMapId() const;

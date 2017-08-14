@@ -7,7 +7,7 @@ layout (location = 1) out vec4 outColor2;
 
 uniform sampler2D inColor;
 uniform sampler2D inColor2;
-uniform sampler2D inNormal;
+uniform sampler2D inPosition;
 
 uniform int isVertical = 0;
 uniform int mipLevel = 0;
@@ -46,7 +46,7 @@ void main()
 		mip = mip - 1;
 	}
 	
-	vec3 normal = texture(inNormal, TexCoord).rgb;
+	float Z = texture(inPosition, TexCoord).z;
 	
 	// Gaussian filter
 	vec4 accumValue = vec4(0);
@@ -59,10 +59,9 @@ void main()
 	{
 		vec2 sampleCoord = TexCoord + i * texelSize;
 		vec4 sampleValue = textureLod(inColor, sampleCoord, mip);
-		vec3 sampleNormal = texture(inNormal, sampleCoord).rgb;
-		vec3 distv = normal - sampleNormal;
-		float sampleWeight = normpdf(dot(distv, distv), bsigma) * kernel[kernelRadius + i];
-		//float sampleWeight = kernel[kernelRadius + i];
+		/*float sampleZ = texture(inPosition, sampleCoord).z;
+		float sampleWeight = normpdf(Z - sampleZ, bsigma) * kernel[kernelRadius + i];*/
+		float sampleWeight = kernel[kernelRadius + i];
 		
 		accumValue += sampleValue * sampleWeight;
 		accumWeight += sampleWeight;
@@ -75,5 +74,5 @@ void main()
 	vec4 finalColor2 = accumValue2 / accumWeight;
 	
 	outColor = finalColor;
-	outColor2 = finalColor2;
+	//outColor2 = finalColor2;
 }

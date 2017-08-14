@@ -16,41 +16,45 @@ layout (std140, binding = 9) uniform MatCam
 
 uniform sampler2D gNormal;
 uniform sampler2D inColor;
+uniform samplerCube envMap;
 
 const ivec2 bufferSize = ivec2(1920, 1080);
 const vec2 texelSize = 1.0 / vec2(1920, 1080);
+const float aspect = 1080.0 / 1920;
+
 
 void main()
 {
-	ivec2 pixelCoord = ivec2(TexCoord * bufferSize);
-	vec3 normal = texelFetch(gNormal, pixelCoord, 0).xyz;
-	vec4 color = texelFetch(inColor, pixelCoord, 0);
+	vec3 normal = texture(gNormal, TexCoord).xyz;
+	vec4 color = texture(inColor, TexCoord);
 	
+	vec4 envColor = texture(envMap, normal);
 	
 	// For each pixel see if the normal vector in screenspace falls on current coordinate, if so, sum.
-	vec3 colorSum = color.rgb;
+	vec3 colorSum = vec3(0);
 	float colorWeight = 1;
-	/*for (int i = 0; i < bufferSize.x; i++)
+	for (int i = 0; i < bufferSize.x; i++)
 	{
 		for (int j = 0; j < bufferSize.y; j++)
 		{
-			vec3 sampleColor = texelFetch(inColor, ivec2(i, j), 0).xyz;
-			vec3 sampleNormal = texelFetch(gNormal, ivec2(i, j), 0).xyz;
+			vec2 sampleCoord = vec2(i, j) * texelSize;
+			vec3 sampleColor = texture(inColor, sampleCoord).rgb;
+			vec3 sampleNormal = texture(gNormal, sampleCoord).xyz;
+			vec3 envColor = texture(envMap, sampleNormal).rgb;
 			
-			vec4 ssCoord = kinectProjection * vec4(sampleNormal, 1);
-			ssCoord = ssCoord / ssCoord.w;
-			ssCoord.xy = ssCoord.xy * 0.5 + 0.5;
-			
-			ivec2 samplePixelCoord = ivec2(ssCoord.xy * bufferSize);
-			
-			vec2 coordDist = pixelCoord - samplePixelCoord;
-			float s = float(all(not(bvec2(coordDist))));
+			vec2 ssCoord = sampleNormal.xy;
+			ssCoord.x *= aspect;
+			ssCoord = ssCoord * 0.5 + 0.5;
 			
 			
-			colorSum += sampleColor * s;
+			vec2 coordDist = abs(TexCoord - ssCoord);
+			float s = float(all(not(bvec2(step(texelSize * 5, coordDist)))));
+			
+			
+			colorSum += (sampleColor + envColor) * 0.5 * s;
 			colorWeight += s;
 		}
-	}*/
+	}
 	colorSum /= colorWeight;
 	
 	vec4 finalColor = vec4(0);
