@@ -15,7 +15,6 @@ uniform float sharpness = 0.2;
 uniform float sharpnessPower = 2;
 uniform float mipLevel = 0;
 uniform float maxMipLevel = 5;
-uniform vec2 bufferSize = vec2(1920, 1080);
 
 // b = base, h = height, of isosceles triangle
 float inRadius(float b, float h)
@@ -35,7 +34,8 @@ void main()
 	float mRoughness = roughness;
 	
 	float distScaled = smoothstep(0.0, sharpness * pow(1 - mRoughness, sharpnessPower), reflectionRay.z);
-	float mip = distScaled * maxMipLevel * mRoughness;
+	//float mip = distScaled * maxMipLevel * mRoughness;
+	float mip = maxMipLevel * mRoughness;
 	//mip = 2;
 	mip = clamp(mip, 0, maxMipLevel);
 	float mipAlpha = clamp(mip * 1, 0, maxMipLevel);

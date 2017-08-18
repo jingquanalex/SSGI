@@ -34,7 +34,7 @@ void main()
 	float occlusion = 0.0;
 	vec3 sumColor = vec3(0);
 	
-vec3 randomVec = vec3(1, 0, 0);
+	vec3 randomVec = vec3(1, 0, 0);
 	vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
 	vec3 bitangent = cross(normal, tangent);
 	mat3 TBN = mat3(tangent, bitangent, normal);
@@ -55,10 +55,10 @@ vec3 randomVec = vec3(1, 0, 0);
 		if (sampleDepth > fragPos.z + bias)
 		{
 			vec3 sampleColor = texture(gColor, offset.xy).rgb;
-			float rangeCheck = smoothstep(0.0, 1.0, kernelRadius / abs(position.z - sampleDepth));
+			float range = smoothstep(kernelRadius, kernelRadius * 123, kernelRadius / abs(position.z - sampleDepth));
 			
-			occlusion += rangeCheck;
-			sumColor += (1 - sampleColor) * (rangeCheck);
+			occlusion += range;
+			sumColor += (1 - sampleColor) * range;
 		}
 	}
 	occlusion = occlusion / kernelSize;
@@ -72,5 +72,5 @@ vec3 randomVec = vec3(1, 0, 0);
 	sumColor = clamp(1 - sumColor * colorIntensity, 0, 1);
 	sumColor = vec3(pow(sumColor.r, colorPower), pow(sumColor.g, colorPower), pow(sumColor.b, colorPower));
 	
-	outColor = vec3(sumColor * occlusion);
+	outColor = vec3(1 * occlusion);
 }

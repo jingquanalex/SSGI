@@ -77,6 +77,7 @@ void Scene::initializeShaders()
 	glUniform1i(glGetUniformLocation(outputShader->getShaderId(), "dsColor"), 5);
 	glUniform1i(glGetUniformLocation(outputShader->getShaderId(), "dsDepth"), 6);
 	glUniform1i(glGetUniformLocation(outputShader->getShaderId(), "tex1"), 7);
+	glUniform1i(glGetUniformLocation(outputShader->getShaderId(), "aoMap2"), 8);
 }
 
 void Scene::initialize(nanogui::Screen* guiScreen)
@@ -93,7 +94,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	timerRunOnceOnStart = new Timer(2.0f, 2.0f);
 	camera = new CameraFPS(bufferWidth, bufferHeight);
 	camera->setActive(true);
-	camera->setMoveSpeed(0.5);
+	camera->setMoveSpeed(0.4f);
 	camera->setPosition(vec3(0, 0, 0));
 	camera->setDirection(vec3(0, 0, -1));
 	gPassShader = new Shader("gPass");
@@ -110,14 +111,14 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	plane->load("cube/cube.obj");
 	knob = new Object();
 	knob->setGPassShaderId(gPassShader->getShaderId());
-	knob->setPosition(vec3(0.0f, -0.05f, 0.3f));
-	knob->setScale(vec3(0.05f));
+	knob->setPosition(vec3(0.0f, -0.02f, 0.15f));
+	knob->setScale(vec3(0.02f));
 	knob->load("knob/mitsuba-sphere.obj");
 	dragon = new Object();
 	dragon->setGPassShaderId(gPassShader->getShaderId());
 	//dragon->setBoundingBoxVisible(true);
 	//dragon->setScale(vec3(0.05f));
-	dragon->setScale(vec3(0.25f));
+	dragon->setScale(vec3(0.05f));
 	dragon->setPosition(vec3(0, 0, -0.5));
 	//dragon->setRotationEulerAngle(vec3(0, 90, 0));
 	dragon->setRotationByAxisAngle(vec3(0, 1, 0), 90);
@@ -296,6 +297,9 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	gui->addVariable<float>("exposure",
 		[&](const float &value) { setExposure(value); },
 		[&]() { return getExposure(); });
+
+	gui->addGroup("Objects");
+	gui->addVariable("dragonScale", dragonScale);
 	
 	guiScreen->setVisible(true);
 	guiScreen->performLayout();
@@ -475,6 +479,23 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 
+	glGenTextures(1, &cAmbientOcclusion);
+	glBindTexture(GL_TEXTURE_2D, cAmbientOcclusion);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bufferWidth, bufferHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glGenTextures(1, &cAmbientOcclusionBg);
+	glBindTexture(GL_TEXTURE_2D, cAmbientOcclusionBg);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bufferWidth, bufferHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	// Init shader uniforms
@@ -565,7 +586,7 @@ void Scene::render(GLFWwindow* window)
 	knob->drawMeshOnly();
 
 	// Draw dragon fest
-	if (customPositions != nullptr)
+	if (customPositions != nullptr && dragonNumRadius != 0)
 	{
 		for (int i = 0; i < customPositions->size(); i++)
 		{
@@ -579,8 +600,8 @@ void Scene::render(GLFWwindow* window)
 			float mRoughness = x;
 			float mMetallic = y;
 
-			glUniform1f(glGetUniformLocation(gPassShader->getShaderId(), "metallic"), mMetallic);
-			glUniform1f(glGetUniformLocation(gPassShader->getShaderId(), "roughness"), mRoughness);
+			//glUniform1f(glGetUniformLocation(gPassShader->getShaderId(), "metallic"), mMetallic);
+			//glUniform1f(glGetUniformLocation(gPassShader->getShaderId(), "roughness"), mRoughness);
 
 			glActiveTexture(GL_TEXTURE0);
 			if (i % 4 == 0) glBindTexture(GL_TEXTURE_2D, texWhite);
@@ -588,7 +609,7 @@ void Scene::render(GLFWwindow* window)
 			else if (i % 4 == 2) glBindTexture(GL_TEXTURE_2D, texGreen);
 			else if (i % 4 == 3) glBindTexture(GL_TEXTURE_2D, texBlue);
 
-			dragon->setScale(vec3(0.1f) * -customPositions->at(i).z);
+			dragon->setScale(vec3(dragonScale) * -customPositions->at(i).z);
 			float halfHeight = (dragon->getBoundingBox().Height / 2) * 0.8f;
 			dragon->setPosition(customPositions->at(i) + customNormals->at(i) * halfHeight);
 			dragon->setRotationByAxisAngle(customNormals->at(i), customRandoms.at(i) * 360.0f);
@@ -627,8 +648,7 @@ void Scene::render(GLFWwindow* window)
 	
 
 	// Screen space reflection pass
-	GLuint ao;
-	ssr->draw(gComposedPosition, gComposedNormal, cFinalScene, pbr->getIrradianceMapId(), pbr->getPrefilterMapId(), cLightingFull, ao);
+	ssr->draw(gComposedPosition, gComposedNormal, cFinalScene, pbr->getIrradianceMapId(), pbr->getPrefilterMapId(), cLightingFull, cAmbientOcclusion);
 	
 	// Differential rendering: Rendered (virtual) scene pass
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
@@ -665,7 +685,7 @@ void Scene::render(GLFWwindow* window)
 
 	
 	// Screen space reflection pass
-	ssr->draw(dsPosition, dsNormal, dsColor, pbr->getIrradianceMapId(), pbr->getPrefilterMapId(), cLightingBack, ao);
+	ssr->draw(dsPosition, dsNormal, dsColor, pbr->getIrradianceMapId(), pbr->getPrefilterMapId(), cLightingBack, cAmbientOcclusionBg);
 	
 
 	// Differential rendering: Background (real) scene pass
@@ -744,6 +764,8 @@ void Scene::render(GLFWwindow* window)
 	glBindTexture(GL_TEXTURE_2D, sensor->getDepthMapId());
 	glActiveTexture(GL_TEXTURE7);
 	glBindTexture(GL_TEXTURE_2D, pbr->getReflectanceMapId());
+	glActiveTexture(GL_TEXTURE8);
+	glBindTexture(GL_TEXTURE_2D, cAmbientOcclusion);
 
 	quad->draw();
 
@@ -824,7 +846,6 @@ void Scene::keyCallback(int key, int action)
 	if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
 	{
 		spawnDragons(dragonNumRadius);
-		pbr->recompileShaders();
 		pbr->recomputeEnvMaps(dsColor);
 	}
 }

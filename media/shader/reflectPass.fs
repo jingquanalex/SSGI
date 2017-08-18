@@ -422,7 +422,7 @@ void main()
 		
 		// No occlusion contribution from rays facing camera
 		vec3 rayDir = normalize(hitPoint - rayOrigin);
-		if (dot(normalize(position), rayDir) < -0.99) intersect = false;
+		if (dot(normalize(position), rayDir) < -0.95) intersect = false;
 		
 		if (intersect)
 		{
@@ -442,5 +442,5 @@ void main()
 	vec3 aoColor = totalColor * ao;
 	//ao = ao * alpha;
 
-	outAmbientOcclusion = vec4(vec3(aoColor), float(intersect));
+	outAmbientOcclusion = vec4(vec3(ao), float(intersect));
 }

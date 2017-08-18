@@ -62,7 +62,7 @@ private:
 	nanogui::Color lightColor = nanogui::Color(1.00f, 0.48f, 0.49f, 1.0f);
 	float bgRoughness = 0.3f;
 	float bgMetallic = 0.3f;
-	float roughness = 0.24f;
+	float roughness = 0.04f;
 	float metallic = 0.1f;
 	float exposure = 2.0;
 
@@ -77,7 +77,7 @@ private:
 	int currFrame = 0;
 
 	SSReflection* ssr;
-	
+	GLuint cAmbientOcclusion, cAmbientOcclusionBg;
 
 	PointCloud* pointCloud;
 
@@ -86,6 +86,7 @@ private:
 
 	void spawnDragons(int numRadius);
 	int dragonNumRadius = 1;
+	float dragonScale = 0.15f;
 
 public:
 

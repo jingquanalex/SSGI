@@ -37,7 +37,7 @@ private:
 	Shader* gaussianBlurShader;
 	Shader* coneTraceShader;
 	GLuint fbo;
-	GLuint cReflection, cReflectionRay, cAmbientOcclusion;
+	GLuint cReflection, cReflectionRay;
 	GLuint cLightFilterH, cLightFilterV;
 	GLuint cLightFilterH2, cLightFilterV2;
 	std::vector<float> gaussianKernel;
@@ -52,7 +52,7 @@ public:
 	SSReflection(int width, int height);
 	~SSReflection();
 
-	void draw(GLuint texPosition, GLuint texNormal, GLuint texLight, GLuint irrEnv, GLuint prefiltEnv, GLuint outTexture, GLuint& outAO);
+	void draw(GLuint texPosition, GLuint texNormal, GLuint texLight, GLuint irrEnv, GLuint prefiltEnv, GLuint outTexture, GLuint aoTexture);
 
 	void initializeShaders();
 	void recompileShaders();

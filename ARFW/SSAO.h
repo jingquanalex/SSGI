@@ -15,15 +15,15 @@ private:
 	int kernelSize = 64;
 	float kernelRadius = 0.05f;
 	int samples = 24;
-	float bias = 0.003f;
-	float intensity = 0.01f;
-	float power = 10.0f;
+	float bias = 0.00001f;
+	float intensity = 0.001f;
+	float power = 22.0f;
 	
 	std::vector<float> blurKernel;
-	int blurKernelRadius = 20;
-	float blurSigma = 20.0f;
-	float blurZSigma = 0.005f;
-	float blurNSigma = 0.5f;
+	int blurKernelRadius = 5;
+	float blurSigma = 5.0f;
+	float blurZSigma = 0.01f;
+	float blurNSigma = 0.1f;
 
 	std::vector<glm::vec3> kernel;
 	GLuint noiseTexId;

@@ -13,6 +13,7 @@ uniform sampler2D gColor;
 uniform sampler2D aoMap;
 uniform sampler2D dsColor;
 uniform sampler2D dsDepth;
+uniform sampler2D aoMap2;
 
 uniform sampler2D tex1;
 
@@ -81,6 +82,7 @@ void main()
 	float dsdepth = texture(dsDepth, TexCoord).r;
 	
 	vec3 texture1 = texture(tex1, TexCoord).rgb;
+	vec3 ao2 = texture(aoMap2, TexCoord).rgb;
 	
 	switch (displayMode)
 	{
@@ -114,6 +116,10 @@ void main()
 			
 		case 8:
 			outColor = vec4(texture1, 1);
+			break;
+			
+		case 9:
+			outColor = vec4(ao2, 1);
 			break;
 	}
 	
