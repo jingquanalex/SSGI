@@ -59,7 +59,7 @@ void main()
 		vec2 unitOffset = randomSamples(i, samples, ssC);
 		vec2 sampleCoord = TexCoord + unitOffset * kernelRadius;
 		vec3 samplePosition = texture(gPosition, sampleCoord).xyz;
-		//vec3 sampleColor = texture(gColor, sampleCoord).rgb;
+		vec3 sampleColor = texture(gColor, sampleCoord).rgb;
 
 		vec3 v = samplePosition - position;
 		float vv = dot(v, v);
@@ -67,7 +67,7 @@ void main()
 		float sD = max(pow(kernelRadius * kernelRadius - vv, 3), 0);
 		float sS = max((vn - bias) / (vv + epsilon), 0);
 		
-		//sumColor += (1 - sampleColor) * sD * sS;
+		sumColor += (1 - sampleColor) * sD * sS;
 		sumOcclusion += sD * sS;
 		//sumOcclusion += max((vn - bias) / (vv + epsilon), 0);
 	}
@@ -79,8 +79,9 @@ void main()
 	/*float occlusion = max(1 - sumOcclusion * (intensity * 2) / samples, 0);
 	occlusion = pow(occlusion, power);*/
 	
-	/*vec3 color = sumColor * 5.0 / (pow(kernelRadius, 6) * samples);
-	color = max(1 - color * intensity * 1, 0);*/
+	vec3 color = sumColor * 5.0 / (pow(kernelRadius, 6) * samples);
+	color = max(1 - color * intensity * 0.5, 0);
+	color = pow(color, vec3(power));
 	
-	outColor = vec3(occlusion);
+	outColor = vec3(color * occlusion);
 }
