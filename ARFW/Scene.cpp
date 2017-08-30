@@ -542,6 +542,9 @@ void Scene::update()
 	glUniform1f(glGetUniformLocation(compositeShader->getShaderId(), "exposure"), exposure);
 
 	camera->update(frameTime);
+
+	// Update for potential color or depth frame from kinect
+	sensor->update();
 	sensor->update();
 
 	// Update CamMat uniform buffer
