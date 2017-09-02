@@ -32,6 +32,7 @@ void main()
 	//vec4 ao = textureLod(inAmbientOcclusion, TexCoord, mipLevel);
 	
 	float mRoughness = roughness;
+	mRoughness = texture(gPosition, reflectionRay.xy).a; // sample rough parm at hitcoord
 	
 	float distScaled = smoothstep(0.0, sharpness * pow(1 - mRoughness, sharpnessPower), reflectionRay.z);
 	//float mip = distScaled * maxMipLevel * mRoughness;
