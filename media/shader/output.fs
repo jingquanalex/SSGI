@@ -14,7 +14,6 @@ uniform sampler2D aoMap;
 uniform sampler2D dsColor;
 uniform sampler2D dsDepth;
 uniform sampler2D aoMap2;
-
 uniform sampler2D tex1;
 
 uniform vec2 bufferSize = vec2(1920, 1080);
@@ -81,7 +80,7 @@ void main()
 	vec4 dscolor = texture(dsColor, TexCoord);
 	float dsdepth = texture(dsDepth, TexCoord).r;
 	
-	vec3 texture1 = texture(tex1, TexCoord).rgb;
+	vec4 texture1 = texture(tex1, TexCoord);
 	vec3 ao2 = texture(aoMap2, TexCoord).rgb;
 	
 	switch (displayMode)
@@ -115,7 +114,7 @@ void main()
 			break;
 			
 		case 8:
-			outColor = vec4(texture1, 1);
+			outColor = vec4(texture1.rgb * texture1.a, 1);
 			break;
 			
 		case 9:

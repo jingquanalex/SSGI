@@ -5,7 +5,7 @@ in vec3 WorldPos;
 out vec4 FragColor;
 
 uniform sampler2D colorMap;
-uniform int recapture = 0;
+uniform int recapture = 1;
 
 void main()
 {		
@@ -17,7 +17,7 @@ void main()
 	if (recapture > 0) uv.y = 1 - uv.y;
 	
     vec3 color = texture(colorMap, uv).rgb;
-	if (recapture > 0) color = pow(color, vec3(2.2));
+	//if (recapture > 0) color = pow(color, vec3(2.2));
     
     FragColor = vec4(color, 1.0);
 }

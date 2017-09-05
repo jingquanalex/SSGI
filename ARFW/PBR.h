@@ -46,7 +46,9 @@ public:
 
 	void recompileShaders();
 	void computeEnvMaps();
+	void computeBRDFLut();
 	void recomputeEnvMaps(GLuint colorMap);
+	void recomputeBothSums(GLuint colorMap);
 	void computeReflectanceMap(GLuint normalMap, GLuint colorMap);
 
 	GLuint getEnvironmentMapId() const;

@@ -59,8 +59,8 @@ void main()
 	{
 		vec2 sampleCoord = TexCoord + i * texelSize;
 		vec4 sampleValue = textureLod(inColor, sampleCoord, mip);
-		/*float sampleZ = texture(inPosition, sampleCoord).z;
-		float sampleWeight = normpdf(Z - sampleZ, bsigma) * kernel[kernelRadius + i];*/
+		//float sampleZ = texture(inPosition, sampleCoord).z;
+		//float sampleWeight = normpdf(Z - sampleZ, bsigma) * kernel[kernelRadius + i];
 		float sampleWeight = kernel[kernelRadius + i];
 		
 		accumValue += sampleValue * sampleWeight;

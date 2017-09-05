@@ -113,7 +113,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	knob->setGPassShaderId(gPassShader->getShaderId());
 	knob->setPosition(vec3(0.0f, -0.02f, 0.15f));
 	knob->setScale(vec3(0.02f));
-	knob->load("knob/mitsuba-sphere.obj");
+	knob->load("dragon.obj");
 	dragon = new Object();
 	dragon->setGPassShaderId(gPassShader->getShaderId());
 	//dragon->setBoundingBoxVisible(true);
@@ -123,8 +123,8 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	//dragon->setRotationEulerAngle(vec3(0, 90, 0));
 	dragon->setRotationByAxisAngle(vec3(0, 1, 0), 90);
 	dragon->load("dragon.obj");
+	//dragon->load("knob/mitsuba-sphere.obj");
 	//dragon->load("sibenik/sibenik.obj");
-	//dragon->load("dragon/dragon.obj");
 	texWhite = Image::loadTexture(g_ExePath + "../../media/white.png");
 	texRed = Image::loadTexture(g_ExePath + "../../media/red.png");
 	texGreen = Image::loadTexture(g_ExePath + "../../media/green.png");
@@ -158,7 +158,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	});
 	gui->addButton("Recompute envmap", [&]()
 	{
-		pbr->recomputeEnvMaps(dsColor);
+		pbr->recomputeBothSums(dsColor);
 	});
 
 	gui->addGroup("Light/Material");
@@ -299,7 +299,8 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 		[&]() { return getExposure(); });
 
 	gui->addGroup("Objects");
-	gui->addVariable("dragonScale", dragonScale);
+	gui->addVariable("objectScale", dragonScale);
+	gui->addVariable("objectToGroundFactor", drasonHeightFactor);
 	
 	guiScreen->setVisible(true);
 	guiScreen->performLayout();
@@ -559,7 +560,7 @@ void Scene::update()
 	if (timerRunOnceOnStart->ticked())
 	{
 		spawnDragons(1);
-		pbr->recomputeEnvMaps(dsColor);
+		pbr->recomputeBothSums(dsColor);
 	}
 }
 
@@ -613,7 +614,7 @@ void Scene::render(GLFWwindow* window)
 			else if (i % 4 == 3) glBindTexture(GL_TEXTURE_2D, texBlue);
 
 			dragon->setScale(vec3(dragonScale) * -customPositions->at(i).z);
-			float halfHeight = (dragon->getBoundingBox().Height / 2) * 0.8f;
+			float halfHeight = (dragon->getBoundingBox().Height / 2) * drasonHeightFactor;
 			dragon->setPosition(customPositions->at(i) + customNormals->at(i) * halfHeight);
 			dragon->setRotationByAxisAngle(customNormals->at(i), customRandoms.at(i) * 360.0f);
 			//dragon->setRotationByAxisAngle(customNormals->at(i), 0.0f);
@@ -648,6 +649,40 @@ void Scene::render(GLFWwindow* window)
 	ssao->drawLayer(2, dsPosition, dsNormal, dsColor);
 	ssao->drawCombined(gComposedColor);
 
+
+
+	// Screen space reflection pass
+	ssr->draw(dsPosition, dsNormal, dsColor, pbr->getIrradianceMapId(), pbr->getPrefilterMapId(), cLightingBack, cAmbientOcclusionBg);
+
+
+	// Differential rendering: Background (real) scene pass
+	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cBackScene, 0);
+
+	// Lighting pass
+	glViewport(0, 0, bufferWidth, bufferHeight);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	lightingPassShader->apply();
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, dsPosition);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, dsNormal);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, dsColor);
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, ssao->getTextureLayer(2));
+	glActiveTexture(GL_TEXTURE4);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, pbr->getIrradianceMapId());
+	glActiveTexture(GL_TEXTURE5);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, pbr->getPrefilterMapId());
+	glActiveTexture(GL_TEXTURE6);
+	glBindTexture(GL_TEXTURE_2D, pbr->getBrdfLUTId());
+	glActiveTexture(GL_TEXTURE7);
+	glBindTexture(GL_TEXTURE_2D, cLightingBack);
+
+	quad->draw();
 	
 
 	// Screen space reflection pass
@@ -679,50 +714,9 @@ void Scene::render(GLFWwindow* window)
 	glBindTexture(GL_TEXTURE_2D, pbr->getBrdfLUTId());
 	glActiveTexture(GL_TEXTURE7);
 	glBindTexture(GL_TEXTURE_2D, cLightingFull);
-	glActiveTexture(GL_TEXTURE8);
-	glBindTexture(GL_TEXTURE_2D, pbr->getReflectanceMapId());
 
 	quad->draw();
 
-	
-
-	
-	// Screen space reflection pass
-	ssr->draw(dsPosition, dsNormal, dsColor, pbr->getIrradianceMapId(), pbr->getPrefilterMapId(), cLightingBack, cAmbientOcclusionBg);
-	
-
-	// Differential rendering: Background (real) scene pass
-	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cBackScene, 0);
-
-	// Lighting pass
-	glViewport(0, 0, bufferWidth, bufferHeight);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	lightingPassShader->apply();
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, dsPosition);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, dsNormal);
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, dsColor);
-	glActiveTexture(GL_TEXTURE3);
-	glBindTexture(GL_TEXTURE_2D, ssao->getTextureLayer(2));
-	glActiveTexture(GL_TEXTURE4);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, pbr->getIrradianceMapId());
-	glActiveTexture(GL_TEXTURE5);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, pbr->getPrefilterMapId());
-	glActiveTexture(GL_TEXTURE6);
-	glBindTexture(GL_TEXTURE_2D, pbr->getBrdfLUTId());
-	glActiveTexture(GL_TEXTURE7);
-	glBindTexture(GL_TEXTURE_2D, cLightingBack);
-	glActiveTexture(GL_TEXTURE8);
-	glBindTexture(GL_TEXTURE_2D, pbr->getReflectanceMapId());
-
-	quad->draw();
-
-	
 	
 
 	// Combine the differential rendering textures
@@ -766,7 +760,7 @@ void Scene::render(GLFWwindow* window)
 	glActiveTexture(GL_TEXTURE6);
 	glBindTexture(GL_TEXTURE_2D, sensor->getDepthMapId());
 	glActiveTexture(GL_TEXTURE7);
-	glBindTexture(GL_TEXTURE_2D, pbr->getReflectanceMapId());
+	glBindTexture(GL_TEXTURE_2D, cLightingFull);
 	glActiveTexture(GL_TEXTURE8);
 	glBindTexture(GL_TEXTURE_2D, cAmbientOcclusion);
 

@@ -387,9 +387,10 @@ void main()
 	vec3 hitPoint = vec3(0);
 	float steps;
 	
+	float jF = jitterFactor;
+	if (stride == 1) jF = 0;
 	float rand = fract(sin(dot(TexCoord, vec2(12.9898, 78.233))) * 43758.5453);
-	float jitter = 1.0 + (rand - 0.5) * jitterFactor;
-	//if (stride == 1) jitter = 1;
+	float jitter = 1.0 + (rand - 0.5) * jF;
 	
 	bool intersect = traceSSRay(rayOrigin, rayDirection, jitter, hitCoord, hitPoint, steps);
 	float alpha = SSRayAlpha(rayOrigin, rayDirection, hitCoord, hitPoint, steps);

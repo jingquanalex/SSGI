@@ -60,8 +60,8 @@ private:
 
 	glm::vec3 lightPosition = glm::vec3(0.0f, 1111.5f, 0.0f);
 	nanogui::Color lightColor = nanogui::Color(1.00f, 0.48f, 0.49f, 1.0f);
-	float bgRoughness = 0.3f;
-	float bgMetallic = 0.3f;
+	float bgRoughness = 0.8f;
+	float bgMetallic = 0.0f;
 	float roughness = 0.04f;
 	float metallic = 0.1f;
 	float exposure = 2.0;
@@ -87,6 +87,7 @@ private:
 	void spawnDragons(int numRadius);
 	int dragonNumRadius = 1;
 	float dragonScale = 0.15f;
+	float drasonHeightFactor = 0.8f;
 
 public:
 

@@ -12,15 +12,9 @@ uniform sampler2D inReflectionRay;
 uniform sampler2D inAmbientOcclusion;
 
 uniform float sharpness = 0.2;
-uniform float sharpnessPower = 2;
+uniform float sharpnessPower = 1;
 uniform float mipLevel = 0;
 uniform float maxMipLevel = 5;
-
-// b = base, h = height, of isosceles triangle
-float inRadius(float b, float h)
-{
-	return (b * (sqrt(b * b + 4 * h * h) - b)) / (4 * h);
-}
 
 void main()
 {
@@ -32,15 +26,17 @@ void main()
 	//vec4 ao = textureLod(inAmbientOcclusion, TexCoord, mipLevel);
 	
 	float mRoughness = roughness;
-	mRoughness = texture(gPosition, reflectionRay.xy).a; // sample rough parm at hitcoord
+	//mRoughness = texture(gPosition, reflectionRay.xy).a; // sample rough parm at hitcoord
 	
-	float distScaled = smoothstep(0.0, sharpness * pow(1 - mRoughness, sharpnessPower), reflectionRay.z);
-	//float mip = distScaled * maxMipLevel * mRoughness;
-	float mip = maxMipLevel * mRoughness;
+	//float distScaled = smoothstep(0.0, sharpness * pow(1 - mRoughness, sharpnessPower), reflectionRay.z);
+	float distScaled = smoothstep(0.0, sharpness, pow(reflectionRay.z, sharpnessPower));
+	float mip = distScaled * maxMipLevel * mRoughness;
+	//float mip = maxMipLevel * mRoughness;
 	//mip = 2;
 	mip = clamp(mip, 0, maxMipLevel);
-	float mipAlpha = clamp(mip * 1, 0, maxMipLevel);
 	vec3 distColor = textureLod(inReflection, TexCoord, mip).rgb;
+	
+	float mipAlpha = clamp(mip * 1, 0, maxMipLevel);
 	float distAlpha = textureLod(inReflection, TexCoord, mipAlpha).a;
 	vec4 finalColor = vec4(distColor, distAlpha);
 	

@@ -20,8 +20,8 @@ PBR::PBR(int windowWidth, int windowHeight)
 	brdfShader = new Shader("brdf");
 	reflectanceShader = new Shader("reflectance");
 
-	//hdrRadiance = Image::loadHDRI(g_ExePath + "../../media/hdr/Alexs_Apartment/Alexs_Apt_2k.hdr");
-	hdrRadiance = Image::loadTexture(g_ExePath + "../../media/hdr/bg.png"); // remember to use imgToCubemapShader
+	//hdrRadiance = Image::loadHDRI(g_ExePath + "../../media/hdr/Wooden_Door/WoodenDoor_Ref.hdr");
+	//hdrRadiance = Image::loadTexture(g_ExePath + "../../media/hdr/bg.png"); // remember to use imgToCubemapShader
 
 	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 
@@ -101,10 +101,16 @@ void PBR::recompileShaders()
 void PBR::recomputeEnvMaps(GLuint colorMap)
 {
 	hdrRadiance = colorMap;
-	//imgToCubemapShader->apply();
-	//glUniform1i(glGetUniformLocation(imgToCubemapShader->getShaderId(), "recapture"), 1);
+	imgToCubemapShader->apply();
+	glUniform1i(glGetUniformLocation(imgToCubemapShader->getShaderId(), "recapture"), 0);
 
 	computeEnvMaps();
+}
+
+void PBR::recomputeBothSums(GLuint colorMap)
+{
+	recomputeEnvMaps(colorMap);
+	computeBRDFLut();
 }
 
 void PBR::computeEnvMaps()
@@ -206,7 +212,10 @@ void PBR::computeEnvMaps()
 		}
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
 
+void PBR::computeBRDFLut()
+{
 	// pbr: generate a 2D LUT from the BRDF equations used.
 	// then re-configure capture framebuffer object and render screen-space quad with BRDF shader.
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
