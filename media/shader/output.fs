@@ -106,7 +106,8 @@ void main()
 			break;
 			
 		case 6:
-			outColor = vec4(dscolor.rgb, 1);
+			//outColor = vec4(dscolor.rgb, 1);
+			outColor = vec4(color.a);
 			break;
 			
 		case 7:

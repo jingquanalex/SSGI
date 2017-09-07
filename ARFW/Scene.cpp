@@ -113,7 +113,7 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	knob->setGPassShaderId(gPassShader->getShaderId());
 	knob->setPosition(vec3(0.0f, -0.02f, 0.15f));
 	knob->setScale(vec3(0.02f));
-	knob->load("dragon.obj");
+	knob->load("knob/mitsuba-sphere.obj");
 	dragon = new Object();
 	dragon->setGPassShaderId(gPassShader->getShaderId());
 	//dragon->setBoundingBoxVisible(true);
@@ -162,9 +162,6 @@ void Scene::initialize(nanogui::Screen* guiScreen)
 	});
 
 	gui->addGroup("Light/Material");
-	gui->addVariable("Position X", lightPosition.x);
-	gui->addVariable("Position Y", lightPosition.y);
-	gui->addVariable("Position Z", lightPosition.z);
 	gui->addVariable("Color", lightColor);
 	gui->addVariable("Roughness (kinect)", bgRoughness)->setSpinnable(true);
 	gui->addVariable("Metallic (kinect)", bgMetallic)->setSpinnable(true);

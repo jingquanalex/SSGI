@@ -23,10 +23,10 @@ void main()
 	vec3 dscolor = texture(dsColor, TexCoord).rgb;
 	
 	vec4 finalColor = fullcolor;
-	vec3 objects = fullcolor.rgb * fullcolor.a;
-	vec3 background = (dscolor * clamp(fullcolor.rgb / backcolor.rgb, 0, 1)) * (1 - fullcolor.a);
-	//vec3 background = (dscolor + fullcolor.rgb - backcolor.rgb) * (1 - fullcolor.a);
-	finalColor.rgb = objects + background;
+	vec3 objects = fullcolor.rgb;
+	vec3 background = dscolor * clamp(fullcolor.rgb / backcolor.rgb, 0, 1);
+	//vec3 background = (dscolor + fullcolor.rgb - backcolor.rgb);
+	finalColor.rgb = mix(objects, background, 1 - fullcolor.a);
 	
 	//finalColor.rgb = fullcolor.rgb;
 	//finalColor.rgb = backcolor.rgb;

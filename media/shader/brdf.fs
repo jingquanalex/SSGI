@@ -1,3 +1,10 @@
+/*
+
+Attribution 4.0 International (CC BY 4.0)
+Joey de Vries learnopengl.com
+
+*/
+
 #version 450
 
 in vec2 TexCoord;
